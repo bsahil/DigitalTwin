@@ -5,8 +5,10 @@
 // worker, the body mesh — is listed in artifact-files.json with its media type, so the
 // publish step never has to guess what changed.
 //
-//   node scripts/make-artifact.cjs                 # normal
-//   node scripts/make-artifact.cjs --inline-body   # if the host rejects body.bin: base64 it into body.json
+//   node scripts/make-artifact.cjs --inline-body   # what `npm run build:artifact` runs: the
+//                                                   # artifact host serves no .bin, so the mesh
+//                                                   # travels base64-encoded inside body.json
+//   node scripts/make-artifact.cjs                 # keep body.bin separate (any ordinary host)
 const fs = require('fs');
 const path = require('path');
 

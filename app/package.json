@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "build:artifact": "vite build && node scripts/make-artifact.cjs",
+    "build:artifact": "vite build && node scripts/make-artifact.cjs --inline-body",
     "build:body": "tsx scripts/build-body-asset.ts"
   },
   "dependencies": {
