@@ -295,7 +295,7 @@ export function BodyScreen({
           {/* Skin tone is a picture choice, not data: numbered, never described. */}
           <div
             data-testid="skin-tones"
-            className="absolute right-4 top-16 flex gap-1 rounded-full border border-atlas-line bg-atlas-panel/80 p-1 backdrop-blur sm:right-6 sm:top-[4.5rem]"
+            className="absolute right-4 top-[6.75rem] flex gap-1 rounded-full border border-atlas-line bg-atlas-panel/80 p-1 backdrop-blur sm:right-6 sm:top-[4.5rem]"
             role="radiogroup"
             aria-label="Skin tone"
           >
@@ -353,7 +353,7 @@ export function BodyScreen({
             {bodyError && <div className="mt-1 text-rose-300">The body could not load: {bodyError}</div>}
           </div>
 
-          <div className="pointer-events-none absolute right-4 top-24 sm:right-6 sm:top-[6.5rem]">
+          <div className="pointer-events-none absolute right-4 top-[9rem] sm:right-6 sm:top-[6.5rem]">
             <Legend layer={layer} model={model} />
           </div>
 
