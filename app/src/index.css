@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --color-atlas-bg: #08090c;
+  --color-atlas-panel: #101218;
+  --color-atlas-line: #1e222c;
+  --color-atlas-text: #e6e8ee;
+  --color-atlas-muted: #848da3;
+  --color-atlas-accent: #5eead4;
+}
+
+html, body, #root { height: 100%; }
+
+body {
+  background: var(--color-atlas-bg);
+  color: var(--color-atlas-text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: color-mix(in srgb, var(--color-atlas-accent) 30%, transparent); }
