@@ -174,3 +174,17 @@ describe('provenance', () => {
     }
   });
 });
+
+describe('coverage', () => {
+  test('no catalog metric is a relationship orphan', () => {
+    const inCluster = new Set(CLUSTERS.flatMap((c) => c.members));
+    const orphans = CATALOG.map((c) => c.canonical_name).filter((n) => !inCluster.has(n));
+    expect(orphans, `"What is it connected to?" renders nothing for: ${orphans.join(', ')}`).toEqual([]);
+  });
+
+  test('every catalog metric has at least one thing the scan cannot tell it', () => {
+    const covered = new Set(MISSING_DATA.flatMap((m) => m.relevantTo));
+    const uncovered = CATALOG.map((c) => c.canonical_name).filter((n) => !covered.has(n));
+    expect(uncovered, `"What don't we know?" never renders for: ${uncovered.join(', ')}`).toEqual([]);
+  });
+});

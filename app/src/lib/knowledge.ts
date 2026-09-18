@@ -96,7 +96,9 @@ export const CLUSTERS: Cluster[] = [
       'skeletal_muscle_mass',
       'skeletal_muscle_percentage',
       'lean_mass',
+      'trunk_muscle_mass',
       'protein_mass',
+      'protein_percentage',
       'body_cell_mass',
       'muscle_control',
     ],
@@ -106,6 +108,7 @@ export const CLUSTERS: Cluster[] = [
     title: 'Left against right',
     why: 'Left/right and upper/lower comparisons of the same tissue type.',
     members: [
+      'trunk_muscle_mass',
       'left_arm_muscle_mass',
       'right_arm_muscle_mass',
       'left_leg_muscle_mass',
@@ -140,8 +143,8 @@ export const CLUSTERS: Cluster[] = [
   {
     id: 'energy',
     title: 'Energy and metabolism',
-    why: 'Basal metabolic rate estimates are commonly calculated from fat-free tissue.',
-    members: ['bmr', 'lean_mass', 'fat_free_mass', 'recommended_calorie_intake'],
+    why: 'Basal metabolic rate estimates are commonly calculated from fat-free tissue, and a heart rate reading sits in the same picture of energy use.',
+    members: ['bmr', 'lean_mass', 'fat_free_mass', 'recommended_calorie_intake', 'heart_rate'],
   },
   {
     id: 'targets',
@@ -252,6 +255,71 @@ export const MISSING_DATA: MissingMeasurement[] = [
     relevantTo: ['heart_rate', 'skeletal_muscle_mass', 'health_score'],
   },
 ];
+
+const REGIONAL = ['trunk', 'left_arm', 'right_arm', 'left_leg', 'right_leg'].flatMap((r) => [
+  `${r}_muscle_mass`,
+  `${r}_fat_mass`,
+  `${r}_muscle_fat_ratio`,
+]);
+
+MISSING_DATA.push(
+  {
+    id: 'training_history',
+    label: 'What your body has been asked to do',
+    context: 'Regional muscle and fat reflect activity. Knowing what training and daily movement preceded this scan is what gives these figures their context, and no scan records it.',
+    relevantTo: [
+      ...REGIONAL,
+      'body_symmetry',
+      'upper_lower_muscle_balance',
+      'trunk_limb_muscle_balance',
+      'muscle_control',
+      'skeletal_muscle_percentage',
+      'lean_mass',
+      'lean_mass_percentage',
+      'fat_free_mass',
+      'protein_mass',
+      'protein_percentage',
+      'body_type',
+      'body_age',
+    ],
+  },
+  {
+    id: 'dietary_intake',
+    label: 'What you actually eat',
+    context: 'Calorie targets and fat figures read differently alongside a record of real intake, which a scan cannot see.',
+    relevantTo: [
+      'recommended_calorie_intake',
+      'ideal_weight',
+      'weight_control',
+      'fat_control',
+      'fat_grade',
+      'subcutaneous_fat_mass',
+      'subcutaneous_fat_percentage',
+      'bmr',
+      'weight',
+    ],
+  },
+  {
+    id: 'sleep_and_recovery',
+    label: 'Sleep and recovery',
+    context: 'A heart rate reading and a metabolic estimate sit in the context of rest and recovery that a single scan does not capture.',
+    relevantTo: ['bmr', 'heart_rate', 'body_age'],
+  },
+  {
+    id: 'hydration_timing',
+    label: 'When you last ate, drank and exercised',
+    context: 'Bioimpedance reads body water directly, so hydration, meals and exercise in the hours before a scan shift these figures. The scan does not record any of that.',
+    relevantTo: [
+      'water_percentage',
+      'total_water',
+      'intracellular_water',
+      'extracellular_water',
+      'water_balance',
+      'weight',
+      'lean_mass',
+    ],
+  },
+);
 
 export const missingFor = (canonicalName: string): MissingMeasurement[] =>
   MISSING_DATA.filter((m) => m.relevantTo.includes(canonicalName));

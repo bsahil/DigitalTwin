@@ -86,12 +86,41 @@ describeIf('report-a.pdf')('Data Check on report A', () => {
     expect(fatClaims).toEqual([]);
   });
 
+  test('flags fat grade “Healthy” against body fat “High”', async () => {
+    const { flags } = await checked('report-a.pdf');
+    const flag = byId(flags, 'R1:fat_grade:fat_percentage');
+    expect(flag).toBeDefined();
+    expect(flag!.body).toContain('Healthy');
+    expect(flag!.body).toContain('High');
+  });
+
+  test('flags the two legs’ ratios being classified differently', async () => {
+    const { flags } = await checked('report-a.pdf');
+    // 2.2 Normal on the left, 2.0 Low on the right.
+    expect(byId(flags, 'R1:left_leg_muscle_fat_ratio:right_leg_muscle_fat_ratio')).toBeDefined();
+  });
+
+  test('does not flag sides whose labels agree', async () => {
+    const { flags } = await checked('report-a.pdf');
+    expect(byId(flags, 'R1:left_leg_muscle_mass:right_leg_muscle_mass')).toBeUndefined();
+  });
+
+  test('every region’s ratio reconciles with its own muscle and fat, to the printed precision', async () => {
+    const { flags } = await checked('report-a.pdf');
+    expect(flags.filter((f) => f.id.startsWith('R4:ratio_'))).toEqual([]);
+  });
+
   test('flags a symmetry score of 100.4 against legs differing by more than 5%', async () => {
     const { flags } = await checked('report-a.pdf');
     const flag = byId(flags, 'R5:legs');
 
     expect(flag).toBeDefined();
     expect(flag!.body).toContain('100.4');
+  });
+
+  test('recognises every classification word this provider uses', async () => {
+    const { flags } = await checked('report-a.pdf');
+    expect(flags.filter((f) => f.rule === 'R6')).toEqual([]);
   });
 
   test('never resolves a conflict — both readings survive in every flag', async () => {
@@ -128,9 +157,32 @@ describeIf('report-b.pdf')('Data Check on report B', () => {
     expect(byId(flags, 'R4:lean_percentage')).toBeDefined();
   });
 
+  test('flags one arm “Lean” against the other “Healthy”', async () => {
+    const { flags } = await checked('report-b.pdf');
+    expect(byId(flags, 'R1:left_arm_muscle_mass:right_arm_muscle_mass')).toBeDefined();
+  });
+
+  test('flags “Symmetric” against “Mild Asymmetry” from the same provider', async () => {
+    const { flags } = await checked('report-b.pdf');
+    const flag = byId(flags, 'R1:body_symmetry:trunk_limb_muscle_balance');
+    expect(flag).toBeDefined();
+    expect(flag!.body).toContain('Symmetric');
+    expect(flag!.body).toContain('Mild Asymmetry');
+  });
+
+  test('recognises every classification word in the second report', async () => {
+    const { flags } = await checked('report-b.pdf');
+    expect(flags.filter((f) => f.rule === 'R6')).toEqual([]);
+  });
+
+  test('every region’s ratio reconciles on the second report too', async () => {
+    const { flags } = await checked('report-b.pdf');
+    expect(flags.filter((f) => f.id.startsWith('R4:ratio_'))).toEqual([]);
+  });
+
   test('does not raise a symmetry flag when the score itself is not near 100', async () => {
     const { flags } = await checked('report-b.pdf');
-    // Report B gives 96.7, which does not claim balance, so there is nothing to contradict.
+    // Report B's sides differ by 1% (legs) and 3% (arms) — under the margin, whatever the score says.
     expect(flags.filter((f) => f.rule === 'R5')).toEqual([]);
   });
 });
@@ -148,5 +200,50 @@ describe('rules stay quiet on a consistent report', () => {
 
     // "Normal" against "Healthy" is not a disagreement.
     expect(runDataCheck(metrics)).toEqual([]);
+  });
+});
+
+describe('unrecognised classification words', () => {
+  const base = (): CheckMetric[] => [
+    { canonical_name: 'weight', display_name: 'Weight', value: 70, unit: 'kg', source_classification: 'Normal' },
+    { canonical_name: 'fat_mass', display_name: 'Fat Mass', value: 14, unit: 'kg', source_classification: 'Slightly High' },
+    { canonical_name: 'fat_percentage', display_name: 'Body Fat', value: 20, unit: '%', source_classification: 'Normal' },
+    { canonical_name: 'bmi', display_name: 'BMI', value: 22, unit: null, source_classification: 'Slightly High' },
+  ];
+
+  test('are reported once per word, naming every metric that carries it', () => {
+    const flags = runDataCheck(base());
+    const r6 = flags.filter((f) => f.rule === 'R6');
+    expect(r6).toHaveLength(1);
+    expect(r6[0].title).toContain('Slightly High');
+    expect(r6[0].metrics.map((m) => m.canonical_name).sort()).toEqual(['bmi', 'fat_mass']);
+    expect(r6[0].origin).toBe('extraction');
+  });
+
+  test('switch the comparison rules off for that metric rather than firing on a word they cannot place', () => {
+    const flags = runDataCheck(base());
+    // fat_mass "Slightly High" vs fat_percentage "Normal" must not become an R1 verdict,
+    // and bmi "Slightly High" vs fat_percentage "Normal" must not become an R3 verdict.
+    expect(flags.filter((f) => f.rule === 'R1')).toEqual([]);
+    expect(flags.filter((f) => f.rule === 'R3')).toEqual([]);
+  });
+
+  test('a wrong region ratio is caught', () => {
+    const metrics: CheckMetric[] = [
+      { canonical_name: 'left_leg_muscle_mass', display_name: 'Left Leg Muscle', value: 5.5, unit: 'kg', source_classification: null },
+      { canonical_name: 'left_leg_fat_mass', display_name: 'Left Leg Fat', value: 2.5, unit: 'kg', source_classification: null },
+      { canonical_name: 'left_leg_muscle_fat_ratio', display_name: 'Left Leg Ratio', value: 3.1, unit: null, source_classification: null },
+    ];
+    const flag = runDataCheck(metrics).find((f) => f.id === 'R4:ratio_left_leg');
+    expect(flag).toBeDefined();
+    expect(flag!.body).toContain('2.20');
+  });
+
+  test('skeletal muscle exceeding lean mass is caught', () => {
+    const metrics: CheckMetric[] = [
+      { canonical_name: 'skeletal_muscle_mass', display_name: 'Skeletal Muscle Mass', value: 40, unit: 'kg', source_classification: null },
+      { canonical_name: 'lean_mass', display_name: 'Lean Mass', value: 35, unit: 'kg', source_classification: null },
+    ];
+    expect(runDataCheck(metrics).find((f) => f.id === 'R4:skeletal_within_lean')).toBeDefined();
   });
 });
