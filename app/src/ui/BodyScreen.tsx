@@ -7,6 +7,8 @@ import { BodyView, type CameraPreset, type Layer } from './BodyView';
 import { MetricPanel } from './MetricPanel';
 import { DataCheckPanel } from './DataCheckPanel';
 import { Legend } from './Legend';
+import { StandoutStrip } from './StandoutStrip';
+import { buildStandouts } from '../lib/standout';
 import { Panel, ProvenanceTag, SourceLabel } from './primitives';
 
 const LAYERS: { id: Layer; label: string }[] = [
@@ -92,6 +94,11 @@ export function BodyScreen({
     }));
     return runDataCheck(input, narrative ?? undefined);
   }, [metrics, narrative]);
+
+  const standouts = useMemo(
+    () => buildStandouts(flags, model, narrative, metrics),
+    [flags, model, narrative, metrics],
+  );
 
   const headline = ['weight', 'fat_percentage', 'skeletal_muscle_mass', 'water_percentage']
     .map((n) => byName.get(n))
@@ -443,6 +450,8 @@ export function BodyScreen({
           </button>
         ))}
       </div>
+
+      <StandoutStrip items={standouts} onOpen={open} />
     </div>
   );
 }

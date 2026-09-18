@@ -22,6 +22,20 @@ const { chromium } = require('playwright');
   console.log('DATA CHECK BUTTON:', dcBtn.replace(/\n/g,' '));
   await shot('1-body-with-datacheck');
 
+  const strip = await page.locator('[data-testid=standout-strip]').count();
+  const items = await page.locator('[data-testid^=standout-]').count();
+  const kinds = await page.locator('[data-testid^=standout-]').evaluateAll(els => els.map(e => e.dataset.testid.replace('standout-', '')));
+  const first = strip ? (await page.locator('[data-testid^=standout-]').first().innerText()).replace(/\n/g, ' | ') : '';
+  console.log(`STANDOUT STRIP: present=${strip} items=${items} kinds=${kinds.join(',')}`);
+  console.log('STANDOUT FIRST:', first.slice(0, 120));
+  await page.click('[data-testid=standout-conflict]');
+  await page.waitForSelector('[data-testid=metric-panel]');
+  await page.waitForTimeout(400);
+  console.log('STANDOUT CLICK OPENS:', await page.locator('[data-testid=metric-panel] h2').innerText());
+  await shot('1b-standout-open');
+  await page.click('[data-testid=metric-panel] >> text=✕');
+  await page.waitForTimeout(300);
+
   // Data Check drawer
   await page.click('[data-testid=data-check-button]');
   await page.waitForSelector('[data-testid=data-check-panel]');
