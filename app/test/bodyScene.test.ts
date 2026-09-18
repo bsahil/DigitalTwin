@@ -2,6 +2,7 @@ import { describe, test, expect } from 'vitest';
 import * as THREE from 'three';
 import { buildBodyModel, type MetricValues } from '../src/lib/bodyModel';
 import {
+  applyHover,
   applyLayer,
   buildSegmentMeshes,
   pickRegion,
@@ -165,5 +166,46 @@ describe('picking', () => {
       new THREE.Vector3(0, 0, -1),
     );
     expect(pickRegion(meshes, ray)).toBeNull();
+  });
+});
+
+describe('hover and selection highlight', () => {
+  const emissive = (m: THREE.Mesh) => mat(m).emissive.getHex();
+
+  test('in the muscle layer the highlight lands on the core, where it can be seen', () => {
+    const { meshes } = scene('muscle');
+    applyHover(meshes, 'trunk', null, 'muscle');
+    expect(emissive(find(meshes, 'trunk', 'core'))).not.toBe(0);
+    expect(emissive(find(meshes, 'trunk', 'shell'))).toBe(0);
+  });
+
+  test('in the normal layer the highlight lands on the shell', () => {
+    const { meshes } = scene('normal');
+    applyHover(meshes, 'trunk', null, 'normal');
+    expect(emissive(find(meshes, 'trunk', 'shell'))).not.toBe(0);
+    expect(emissive(find(meshes, 'trunk', 'core'))).toBe(0);
+  });
+
+  test('selection outranks hover and survives the hover moving away', () => {
+    const { meshes } = scene('normal', 'trunk');
+    applyHover(meshes, 'left_arm', 'trunk', 'normal');
+    const sel = emissive(find(meshes, 'trunk', 'shell'));
+    const hov = emissive(find(meshes, 'left_arm', 'shell'));
+    expect(sel).not.toBe(0);
+    expect(hov).not.toBe(0);
+    expect(sel).not.toBe(hov);
+
+    applyHover(meshes, null, 'trunk', 'normal');
+    expect(emissive(find(meshes, 'trunk', 'shell'))).toBe(sel);
+    expect(emissive(find(meshes, 'left_arm', 'shell'))).toBe(0);
+  });
+
+  test('clearing hover with nothing selected leaves nothing lit', () => {
+    const { meshes } = scene('fat');
+    applyHover(meshes, 'trunk', null, 'fat');
+    applyHover(meshes, null, null, 'fat');
+    for (const m of meshes) {
+      if ('emissive' in mat(m)) expect(emissive(m)).toBe(0);
+    }
   });
 });

@@ -70,6 +70,7 @@ export function BodyScreen({
   const [openMetric, setOpenMetric] = useState<string | null>(null);
   const [showDataCheck, setShowDataCheck] = useState(false);
   const [showProvenance, setShowProvenance] = useState(false);
+  const [focusRegion, setFocusRegion] = useState<RegionId | null>(null);
 
   const byName = useMemo(() => new Map(metrics.map((m) => [m.canonical_name, m])), [metrics]);
 
@@ -159,7 +160,52 @@ export function BodyScreen({
             onSelect={setSelected}
             preset={preset}
             labelFor={labelFor}
+            focusRegion={focusRegion}
           />
+
+          {/* Keyboard path to the regions. Hidden until focused, then a compact list. */}
+          <ul
+            role="listbox"
+            aria-label="Body regions"
+            tabIndex={0}
+            data-testid="region-listbox"
+            aria-activedescendant={focusRegion ? `region-opt-${focusRegion}` : undefined}
+            onFocus={() => setFocusRegion((r) => r ?? 'trunk')}
+            onBlur={() => setFocusRegion(null)}
+            onKeyDown={(e) => {
+              const ids = model.segments.filter((s) => s.measured).map((s) => s.id);
+              const i = focusRegion ? ids.indexOf(focusRegion) : -1;
+              if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+                e.preventDefault();
+                setFocusRegion(ids[(i + 1) % ids.length]);
+              } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                e.preventDefault();
+                setFocusRegion(ids[(i - 1 + ids.length) % ids.length]);
+              } else if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                if (focusRegion) setSelected(focusRegion);
+              } else if (e.key === 'Escape') {
+                (e.currentTarget as HTMLElement).blur();
+              }
+            }}
+            className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-28 focus:z-30 focus:w-40 focus:rounded-lg focus:border focus:border-atlas-accent focus:bg-atlas-panel/95 focus:p-2 focus:text-xs focus:outline-none focus:backdrop-blur sm:focus:top-20"
+          >
+            {model.segments
+              .filter((s) => s.measured)
+              .map((s) => (
+                <li
+                  key={s.id}
+                  id={`region-opt-${s.id}`}
+                  role="option"
+                  aria-selected={s.id === selected}
+                  className={`rounded px-2 py-1 ${
+                    focusRegion === s.id ? 'bg-atlas-accent/15 text-atlas-accent' : 'text-atlas-muted'
+                  }`}
+                >
+                  {s.label}
+                </li>
+              ))}
+          </ul>
 
           <div className="pointer-events-none absolute left-4 top-4 sm:left-6 sm:top-6">
             <div className="text-sm text-atlas-muted">{profile.subject_name}</div>
@@ -320,6 +366,10 @@ export function BodyScreen({
                       <span className="text-xs text-atlas-muted">
                         — the volume its measured fat and muscle imply
                       </span>
+                    </p>
+                    <p data-testid="region-shares" className="mt-1 text-xs text-atlas-muted">
+                      Fat {Math.round(segment.fatShare * 100)}% · muscle{' '}
+                      {Math.round(segment.muscleShare * 100)}% of this region’s volume
                     </p>
                     <div className="mt-5 space-y-2">
                       {[

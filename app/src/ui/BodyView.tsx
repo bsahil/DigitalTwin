@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { BodyModel, RegionId, Segment } from '../lib/bodyModel';
-import { applyLayer, buildSegmentMeshes, pickRegion, type Layer } from '../lib/bodyScene';
+import { applyHover, applyLayer, buildSegmentMeshes, pickRegion, type Layer } from '../lib/bodyScene';
 
 export type { Layer } from '../lib/bodyScene';
 export type CameraPreset = 'front' | 'back' | 'left' | 'right';
@@ -47,6 +47,7 @@ export function BodyView({
   onSelect,
   preset,
   labelFor,
+  focusRegion = null,
 }: {
   model: BodyModel;
   layer: Layer;
@@ -54,6 +55,8 @@ export function BodyView({
   onSelect: (id: RegionId | null) => void;
   preset: CameraPreset;
   labelFor: (segment: Segment) => string | null;
+  /** A region brought into focus by keyboard, treated exactly like a pointer hover. */
+  focusRegion?: RegionId | null;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const label = useRef<HTMLDivElement>(null);
@@ -62,6 +65,7 @@ export function BodyView({
   const group = useRef<THREE.Group>(null);
   const meshes = useRef<THREE.Mesh[]>([]);
   const hovered = useRef<RegionId | null>(null);
+  const downAt = useRef<{ x: number; y: number } | null>(null);
   const labelFn = useRef(labelFor);
   labelFn.current = labelFor;
 
@@ -187,7 +191,28 @@ export function BodyView({
 
   useEffect(() => {
     applyLayer(meshes.current, layer, selected, model, clip.current);
+    applyHover(meshes.current, hovered.current, selected, layer);
   }, [layer, selected, model]);
+
+  // Keyboard focus drives hover only while it is in play; a selection or layer change
+  // must not clear a hover the pointer is still resting on.
+  const prevFocus = useRef<RegionId | null>(null);
+  useEffect(() => {
+    if (focusRegion !== null || prevFocus.current !== null) {
+      hovered.current = focusRegion;
+      applyHover(meshes.current, focusRegion, selected, layer);
+    }
+    prevFocus.current = focusRegion;
+    // selected and layer are re-applied by the layer effect; only focus changes matter here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRegion]);
+
+  function setHovered(next: RegionId | null) {
+    if (next === hovered.current) return;
+    hovered.current = next;
+    applyHover(meshes.current, next, selected, layer);
+    if (host.current) host.current.style.cursor = next ? 'pointer' : 'default';
+  }
 
   useEffect(() => {
     const cam = camera.current;
@@ -225,18 +250,23 @@ export function BodyView({
   return (
     <div
       ref={host}
-      onClick={(e) => onSelect(pick(e))}
-      onPointerMove={(e) => {
-        hovered.current = pick(e);
-        if (host.current) host.current.style.cursor = hovered.current ? 'pointer' : 'default';
+      onPointerDown={(e) => {
+        downAt.current = { x: e.clientX, y: e.clientY };
       }}
-      onPointerLeave={() => {
-        hovered.current = null;
+      onClick={(e) => {
+        // An orbit drag ends with a click event too; it must not read as a selection.
+        const d = downAt.current;
+        if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6) return;
+        onSelect(pick(e));
       }}
+      onPointerMove={(e) => setHovered(pick(e))}
+      onPointerLeave={() => setHovered(null)}
       className="relative h-full w-full"
     >
       <div
         ref={label}
+        role="status"
+        aria-live="polite"
         data-testid="hover-label"
         className="pointer-events-none absolute left-0 top-0 whitespace-nowrap rounded-lg border border-atlas-line bg-atlas-bg/90 px-2.5 py-1.5 text-xs text-atlas-text opacity-0 backdrop-blur transition-opacity"
       />

@@ -35,6 +35,35 @@ const { chromium } = require('playwright');
   console.log('HOVER LABEL:', await label.innerText(), '| opacity', await label.evaluate(e => getComputedStyle(e).opacity));
   await shot('3-inside-hover');
 
+  // Drag gate: an orbit drag that releases over empty space must not close the selection.
+  await page.click('[data-testid=layer-normal]');
+  await page.waitForTimeout(400);
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.42);
+  await page.waitForTimeout(500);
+  const openBefore = await page.locator('[data-testid=region-panel]').count();
+  const cb = await page.locator('canvas').boundingBox();
+  await page.mouse.move(cb.x + 160, cb.y + cb.height * 0.5);
+  await page.mouse.down();
+  await page.mouse.move(cb.x + 230, cb.y + cb.height * 0.5 + 20, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  const openAfter = await page.locator('[data-testid=region-panel]').count();
+  console.log(`DRAG GATE: panel open before=${openBefore} after drag=${openAfter} -> ${openBefore === 1 && openAfter === 1 ? 'OK' : 'FAIL: drag closed the selection'}`);
+  if (!(openBefore === 1 && openAfter === 1)) process.exitCode = 1;
+  console.log('REGION SHARES:', await page.locator('[data-testid=region-shares]').innerText());
+
+  // Keyboard: focus the region list, step to the next region, Enter selects it.
+  await page.locator('[data-testid=region-listbox]').focus();
+  await page.keyboard.press('ArrowDown');
+  await page.waitForTimeout(300);
+  const kbLabel = await page.locator('[data-testid=hover-label]').innerText();
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(400);
+  console.log('KEYBOARD: focus label =', JSON.stringify(kbLabel.slice(0, 40)), '| selected =', await page.locator('[data-testid=region-panel] h2').innerText());
+  await page.keyboard.press('Escape');
+  await page.click('[data-testid=region-panel] >> text=✕');
+  await page.waitForTimeout(300);
+
   // Pixel probe: in the muscle layer the trunk must read as the solid teal core, not
   // a tinted grey shell. Teal has a low red:green ratio; the neutral slate does not.
   await page.click('[data-testid=view-front]');

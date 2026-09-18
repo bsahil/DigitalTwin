@@ -263,7 +263,6 @@ export function applyLayer(
     if (role === 'shell') {
       mesh.visible = true;
       material.color.setHex(colorFor(segment, layer, model));
-      material.emissive.setHex(isSelected ? 0x16342f : 0x000000);
       // The clip plane exposes interior back faces; only then does a translucent lathe
       // need both sides, and only then is the self-overlap worth it.
       sideFor(material, inside ? THREE.DoubleSide : THREE.FrontSide);
@@ -316,6 +315,37 @@ export function applyLayer(
       material.depthWrite = false;
       material.color.setHex(isSelected ? COLORS.neutral : COLORS.unmeasured);
     }
+  }
+}
+
+const EMISSIVE_SELECTED = 0x16342f;
+const EMISSIVE_HOVER = 0x0e2320;
+
+/**
+ * Highlight for hover and selection, applied to whichever compartment the active layer
+ * actually shows: the core in the muscle layer (the shell there is 30% translucent, so
+ * lighting it would be invisible), the visceral core too in the fat layer, and the shell
+ * everywhere else. The single owner of the emissive channel.
+ */
+export function applyHover(
+  meshes: THREE.Mesh[],
+  hovered: RegionId | null,
+  selected: RegionId | null,
+  layer: Layer,
+) {
+  for (const mesh of meshes) {
+    const { regionId, role } = mesh.userData as MeshTag;
+    const material = mesh.material as Std;
+    if (!('emissive' in material)) continue;
+
+    const carries =
+      (layer === 'muscle' && role === 'core') ||
+      (layer === 'fat' && role === 'visceral') ||
+      (layer !== 'muscle' && role === 'shell');
+
+    material.emissive.setHex(
+      !carries ? 0 : regionId === selected ? EMISSIVE_SELECTED : regionId === hovered ? EMISSIVE_HOVER : 0,
+    );
   }
 }
 
