@@ -6,12 +6,52 @@ import { applyHover, applyLayer, buildSegmentMeshes, pickRegion, type Layer } fr
 
 export type { Layer } from '../lib/bodyScene';
 export type CameraPreset = 'front' | 'back' | 'left' | 'right';
+/** `fit` frames every body the same size; `true` frames a fixed envelope so height shows. */
+export type ScaleMode = 'fit' | 'true';
 
 const FOV = 32;
 
-/** Distance that fits the whole figure in frame with margin, from height and FOV. */
+/** The fixed frame true-scale mode uses, so two people of different heights differ on screen. */
+export const ENVELOPE_M = 1.95;
+
+/** Distance that fits a given height in frame with margin, from height and FOV. */
 const fitDistance = (heightM: number) =>
   (heightM * 1.28) / (2 * Math.tan((FOV * Math.PI) / 360));
+
+const RULE_X = -0.48;
+const RULE_LABELS_M = [0.5, 1.0, 1.5];
+
+/** A vertical rule in 10 cm ticks beside the figure, with the figure's own height marked. */
+function heightRule(model: BodyModel): THREE.Group {
+  const g = new THREE.Group();
+  const pts: number[] = [];
+  const push = (x1: number, y1: number, x2: number, y2: number) => pts.push(x1, y1, 0, x2, y2, 0);
+
+  push(RULE_X, 0, RULE_X, ENVELOPE_M);
+  for (let cm = 0; cm <= ENVELOPE_M * 100 + 0.5; cm += 10) {
+    const y = cm / 100;
+    const half = cm % 50 === 0 ? 0.03 : 0.015;
+    push(RULE_X - half, y, RULE_X + half, y);
+  }
+
+  const lines = new THREE.LineSegments(
+    new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)),
+    new THREE.LineBasicMaterial({ color: 0x4a5266, transparent: true, opacity: 0.9 }),
+  );
+  g.add(lines);
+
+  // The figure's own height, as a distinct marker reaching toward the body.
+  const marker = new THREE.LineSegments(
+    new THREE.BufferGeometry().setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute([RULE_X - 0.04, model.heightM, 0, RULE_X + 0.12, model.heightM, 0], 3),
+    ),
+    new THREE.LineBasicMaterial({ color: 0x5eead4, transparent: true, opacity: 0.9 }),
+  );
+  g.add(marker);
+  g.visible = false;
+  return g;
+}
 
 /** A soft ellipse of shadow, so the figure stands rather than floats. */
 function contactShadow(model: BodyModel): THREE.Mesh {
@@ -48,6 +88,7 @@ export function BodyView({
   preset,
   labelFor,
   focusRegion = null,
+  scaleMode = 'fit',
 }: {
   model: BodyModel;
   layer: Layer;
@@ -57,6 +98,7 @@ export function BodyView({
   labelFor: (segment: Segment) => string | null;
   /** A region brought into focus by keyboard, treated exactly like a pointer hover. */
   focusRegion?: RegionId | null;
+  scaleMode?: ScaleMode;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const label = useRef<HTMLDivElement>(null);
@@ -66,6 +108,11 @@ export function BodyView({
   const meshes = useRef<THREE.Mesh[]>([]);
   const hovered = useRef<RegionId | null>(null);
   const downAt = useRef<{ x: number; y: number } | null>(null);
+  const rule = useRef<THREE.Group>(null);
+  const ruleLabels = useRef<(HTMLDivElement | null)[]>([]);
+  const heightLabel = useRef<HTMLDivElement>(null);
+  const scaleRef = useRef<ScaleMode>(scaleMode);
+  scaleRef.current = scaleMode;
   const labelFn = useRef(labelFor);
   labelFn.current = labelFor;
 
@@ -142,6 +189,22 @@ export function BodyView({
         }
       }
 
+      const showRule = scaleRef.current === 'true';
+      const placeLabel = (node: HTMLDivElement | null, y: number, alignRight: boolean) => {
+        if (!node) return;
+        if (!showRule) {
+          node.style.opacity = '0';
+          return;
+        }
+        projected.set(RULE_X + (alignRight ? 0.14 : -0.05), y, 0).project(cam);
+        node.style.transform = `translate(${alignRight ? '0' : '-100%'}, -50%) translate(${
+          ((projected.x + 1) / 2) * el.clientWidth
+        }px, ${((-projected.y + 1) / 2) * el.clientHeight}px)`;
+        node.style.opacity = projected.z < 1 ? '1' : '0';
+      };
+      RULE_LABELS_M.forEach((y, i) => placeLabel(ruleLabels.current[i], y, false));
+      placeLabel(heightLabel.current, model.heightM, true);
+
       raf = requestAnimationFrame(tick);
     };
     tick();
@@ -181,13 +244,32 @@ export function BodyView({
     meshes.current = buildSegmentMeshes(model, clip.current);
     for (const m of meshes.current) g.add(m);
 
-    const cam = camera.current!;
-    const c = controls.current!;
-    const d = fitDistance(model.heightM);
-    c.target.set(0, model.heightM * 0.5, 0);
-    cam.position.set(0, model.heightM * 0.5, d);
-    c.update();
+    rule.current = heightRule(model);
+    rule.current.visible = scaleRef.current === 'true';
+    g.add(rule.current);
+    if (heightLabel.current) heightLabel.current.textContent = `${(model.heightM * 100).toFixed(1)} cm`;
   }, [model]);
+
+  // Fit mode frames this body; true scale frames a fixed envelope so height is legible.
+  useEffect(() => {
+    if (rule.current) rule.current.visible = scaleMode === 'true';
+    const cam = camera.current;
+    const c = controls.current;
+    if (!cam || !c) return;
+
+    const frame = scaleMode === 'true' ? ENVELOPE_M : model.heightM;
+    const d = fitDistance(frame);
+    const y = frame * 0.5;
+    const positions: Record<CameraPreset, [number, number, number]> = {
+      front: [0, y, d],
+      back: [0, y, -d],
+      left: [-d, y, 0],
+      right: [d, y, 0],
+    };
+    cam.position.set(...positions[preset]);
+    c.target.set(0, y, 0);
+    c.update();
+  }, [preset, scaleMode, model]);
 
   useEffect(() => {
     applyLayer(meshes.current, layer, selected, model, clip.current);
@@ -213,24 +295,6 @@ export function BodyView({
     applyHover(meshes.current, next, selected, layer);
     if (host.current) host.current.style.cursor = next ? 'pointer' : 'default';
   }
-
-  useEffect(() => {
-    const cam = camera.current;
-    const c = controls.current;
-    if (!cam || !c) return;
-
-    const d = fitDistance(model.heightM);
-    const y = model.heightM * 0.5;
-    const positions: Record<CameraPreset, [number, number, number]> = {
-      front: [0, y, d],
-      back: [0, y, -d],
-      left: [-d, y, 0],
-      right: [d, y, 0],
-    };
-    cam.position.set(...positions[preset]);
-    c.target.set(0, model.heightM * 0.5, 0);
-    c.update();
-  }, [preset, model.heightM]);
 
   function pick(event: React.MouseEvent): RegionId | null {
     const el = host.current!;
@@ -263,6 +327,22 @@ export function BodyView({
       onPointerLeave={() => setHovered(null)}
       className="relative h-full w-full"
     >
+      {RULE_LABELS_M.map((y, i) => (
+        <div
+          key={y}
+          ref={(el) => {
+            ruleLabels.current[i] = el;
+          }}
+          className="pointer-events-none absolute left-0 top-0 whitespace-nowrap text-[10px] tabular-nums text-atlas-muted/70 opacity-0"
+        >
+          {y * 100} cm
+        </div>
+      ))}
+      <div
+        ref={heightLabel}
+        data-testid="height-marker"
+        className="pointer-events-none absolute left-0 top-0 whitespace-nowrap rounded border border-atlas-accent/30 bg-atlas-bg/80 px-1.5 py-0.5 text-[11px] tabular-nums text-atlas-accent opacity-0"
+      />
       <div
         ref={label}
         role="status"

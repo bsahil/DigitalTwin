@@ -91,6 +91,42 @@ const { chromium } = require('playwright');
   await page.waitForTimeout(900);
   await shot('4-inside-side');
 
+  // True scale: the figure must get smaller against a fixed 195 cm frame, and the
+  // rule must mark this person's own height.
+  await page.click('[data-testid=layer-normal]');
+  await page.click('[data-testid=view-front]');
+  await page.waitForTimeout(700);
+  const figurePx = () => page.evaluate(() => {
+    const gl = document.querySelector('canvas');
+    const c = document.createElement('canvas');
+    c.width = gl.width; c.height = gl.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(gl, 0, 0);
+    const x = Math.round(gl.width / 2);
+    const col = ctx.getImageData(x, 0, 1, gl.height).data;
+    let top = -1, bottom = -1;
+    for (let y = 0; y < gl.height; y++) {
+      const i = y * 4;
+      const lum = col[i] + col[i+1] + col[i+2];
+      if (lum > 120) { if (top < 0) top = y; bottom = y; }
+    }
+    return bottom - top;
+  });
+  const fitPx = await figurePx();
+  await page.click('[data-testid=scale-true]');
+  await page.waitForTimeout(700);
+  const truePx = await figurePx();
+  const marker = page.locator('[data-testid=height-marker]');
+  const markerText = await marker.innerText();
+  const markerOpacity = await marker.evaluate(e => getComputedStyle(e).opacity);
+  const shrink = truePx / fitPx;
+  console.log(`TRUE SCALE: fit=${fitPx}px true=${truePx}px ratio=${shrink.toFixed(2)} marker="${markerText}" opacity=${markerOpacity} -> ${shrink > 0.7 && shrink < 0.95 && markerOpacity === '1' && /cm$/.test(markerText) ? 'OK' : 'FAIL'}`);
+  if (!(shrink > 0.7 && shrink < 0.95 && markerOpacity === '1')) process.exitCode = 1;
+  await shot('5-true-scale');
+  await page.click('[data-testid=scale-fit]');
+  await page.waitForTimeout(500);
+  console.log('HEIGHT MARKER HIDDEN IN FIT:', await marker.evaluate(e => getComputedStyle(e).opacity) === '0');
+
   console.log('ERRORS:', errors.length ? errors.slice(0,4) : 'none');
   await browser.close();
 })().catch(e => { console.error('FAILED:', e.message); process.exit(1); });

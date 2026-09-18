@@ -3,7 +3,7 @@ import type { Metric, Profile } from '../lib/db';
 import type { ReportNarrative } from '../lib/parser';
 import { buildBodyModel, type MetricValues, type RegionId, type Segment } from '../lib/bodyModel';
 import { runDataCheck, type CheckMetric } from '../lib/dataCheck';
-import { BodyView, type CameraPreset, type Layer } from './BodyView';
+import { BodyView, type CameraPreset, type Layer, type ScaleMode } from './BodyView';
 import { MetricPanel } from './MetricPanel';
 import { DataCheckPanel } from './DataCheckPanel';
 import { Legend } from './Legend';
@@ -68,6 +68,7 @@ export function BodyScreen({
 }) {
   const [layer, setLayer] = useState<Layer>('normal');
   const [preset, setPreset] = useState<CameraPreset>('front');
+  const [scaleMode, setScaleMode] = useState<ScaleMode>('fit');
   const [selected, setSelected] = useState<RegionId | null>(null);
   const [openMetric, setOpenMetric] = useState<string | null>(null);
   const [showDataCheck, setShowDataCheck] = useState(false);
@@ -166,6 +167,7 @@ export function BodyScreen({
             selected={selected}
             onSelect={setSelected}
             preset={preset}
+            scaleMode={scaleMode}
             labelFor={labelFor}
             focusRegion={focusRegion}
           />
@@ -268,6 +270,22 @@ export function BodyScreen({
                 }`}
               >
                 {p}
+              </button>
+            ))}
+            {/* Fit frames every body the same; true scale frames a fixed 195 cm envelope so
+                a shorter and a taller person are visibly different heights. */}
+            <span aria-hidden className="mx-1 w-px self-stretch bg-atlas-line" />
+            {(['fit', 'true'] as const).map((m) => (
+              <button
+                key={m}
+                data-testid={`scale-${m}`}
+                aria-pressed={scaleMode === m}
+                onClick={() => setScaleMode(m)}
+                className={`rounded-full px-3 py-1.5 text-xs transition ${
+                  scaleMode === m ? 'text-atlas-text' : 'text-atlas-muted hover:text-atlas-text'
+                }`}
+              >
+                {m === 'fit' ? 'Fit' : 'True scale'}
               </button>
             ))}
           </div>

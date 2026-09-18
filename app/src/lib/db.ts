@@ -45,20 +45,10 @@ export interface Metric {
   edited_by_user: boolean;
 }
 
-export interface Snapshot {
-  id: string;
-  report_id: string;
-  profile_id: string;
-  measurement_date: string;
-  body_parameters: Record<string, number>;
-  visualization_version: 'v1';
-}
-
 class BodyAtlasDb extends Dexie {
   profiles!: EntityTable<Profile, 'id'>;
   reports!: EntityTable<Report, 'id'>;
   metrics!: EntityTable<Metric, 'id'>;
-  snapshots!: EntityTable<Snapshot, 'id'>;
 
   constructor() {
     super('body-atlas');
@@ -68,6 +58,9 @@ class BodyAtlasDb extends Dexie {
       metrics: 'id, report_id, profile_id, canonical_name, [profile_id+canonical_name]',
       snapshots: 'id, report_id, profile_id, measurement_date',
     });
+    // The body is a pure function of a report's metrics, so a stored snapshot was only
+    // ever a cache nothing read. Dropped; existing databases upgrade in place.
+    this.version(2).stores({ snapshots: null });
   }
 }
 
@@ -148,17 +141,15 @@ export async function commitReport(input: CommitInput): Promise<Report> {
 }
 
 export async function deleteReport(reportId: string) {
-  await db.transaction('rw', db.reports, db.metrics, db.snapshots, async () => {
+  await db.transaction('rw', db.reports, db.metrics, async () => {
     await db.metrics.where('report_id').equals(reportId).delete();
-    await db.snapshots.where('report_id').equals(reportId).delete();
     await db.reports.delete(reportId);
   });
 }
 
 export async function deleteProfile(profileId: string) {
-  await db.transaction('rw', db.profiles, db.reports, db.metrics, db.snapshots, async () => {
+  await db.transaction('rw', db.profiles, db.reports, db.metrics, async () => {
     await db.metrics.where('profile_id').equals(profileId).delete();
-    await db.snapshots.where('profile_id').equals(profileId).delete();
     await db.reports.where('profile_id').equals(profileId).delete();
     await db.profiles.delete(profileId);
   });
