@@ -84,6 +84,26 @@ describe('volume derivation', () => {
     );
   });
 
+  test('elliptical cross-sections preserve the measured volume exactly', () => {
+    const { segments } = buildBodyModel(metrics, 175);
+    for (const seg of segments.filter((x) => x.measured)) {
+      // a·b = r² is what keeps the ellipse holding the circle's volume.
+      expect((seg.scaleX ?? 1) * (seg.scaleZ ?? 1)).toBeCloseTo(1, 10);
+    }
+  });
+
+  test('the torso is wider than it is deep', () => {
+    const trunk = seg(buildBodyModel(metrics, 175).segments, 'trunk');
+    expect(trunk.scaleX!).toBeGreaterThan(1);
+    expect(trunk.scaleZ!).toBeLessThan(1);
+  });
+
+  test('arms abduct away from the torso on both sides', () => {
+    const { segments } = buildBodyModel(metrics, 175);
+    expect(seg(segments, 'left_arm').rotationZ!).toBeGreaterThan(0);
+    expect(seg(segments, 'right_arm').rotationZ!).toBeLessThan(0);
+  });
+
   test('places the left side on +x, so a front-facing figure reads anatomically', () => {
     const { segments } = buildBodyModel(metrics, 175);
     // Facing the front camera at +z, the figure's left is on the viewer's right.

@@ -45,6 +45,18 @@ export const LENGTH_FRACTIONS = {
 } as const;
 
 /**
+ * Depth ÷ width for each segment's cross-section. A torso is far wider than it is
+ * deep; limbs are nearly round. ILLUSTRATIVE.
+ */
+const DEPTH_RATIO = { trunk: 0.72, arm: 0.9, leg: 0.88 } as const;
+
+/** Ellipse axes that preserve the circle's area: a = r/√k, b = r√k, so a·b = r². */
+const ellipse = (k: number) => ({ scaleX: 1 / Math.sqrt(k), scaleZ: Math.sqrt(k) });
+
+/** Arms hang slightly clear of the torso so the silhouette separates. ILLUSTRATIVE. */
+const ARM_ABDUCTION = 0.17;
+
+/**
  * Shape along each segment, sampled top to bottom. Normalised, so only the *relative*
  * form is fixed here — absolute thickness is set entirely by measured volume.
  * ILLUSTRATIVE.
@@ -64,8 +76,15 @@ export interface Segment {
   measured: boolean;
   /** Top of the segment in world space; the segment extends downward. */
   origin: [number, number, number];
-  /** Depth scale, so feet read as feet rather than as cylinders. Illustrative. */
+  /**
+   * Cross-section shaping. A solid of revolution is circular; real segments are
+   * ellipses. For measured segments scaleX * scaleZ === 1, so the ellipse holds
+   * exactly the volume the circle did — only the shape changes. ILLUSTRATIVE.
+   */
+  scaleX?: number;
   scaleZ?: number;
+  /** Rotation about z, in radians, applied at the segment's origin. ILLUSTRATIVE. */
+  rotationZ?: number;
   length: number;
   /** Radii sampled top to bottom, in metres. */
   outer: number[];
@@ -183,7 +202,7 @@ export function buildBodyModel(metrics: MetricValues, heightCm: number): BodyMod
       `${side}_arm` as RegionId,
       side === 'left' ? 'Left arm' : 'Right arm',
       SHAPE.arm,
-      [0, shoulderY - 0.015 * h, 0],
+      [0, shoulderY - 0.05 * h, 0],
       armLength,
       val(metrics, `${side}_arm_muscle_mass`),
       val(metrics, `${side}_arm_fat_mass`),
@@ -207,8 +226,22 @@ export function buildBodyModel(metrics: MetricValues, heightCm: number): BodyMod
   const armTopR = Math.max(find('left_arm').outer[0], find('right_arm').outer[0]);
   const legTopR = Math.max(find('left_leg').outer[0], find('right_leg').outer[0]);
 
-  const armX = Math.max(trunkTopR + armTopR * 0.35, armTopR * 1.2);
-  const legX = Math.min(legTopR * 0.96, Math.max(trunkBottomR - legTopR, legTopR * 0.5));
+  // Cross-sections are ellipses, so a segment is wider in x than its radius. Joins are
+  // placed against that widened silhouette, not the underlying circle.
+  const trunkShape = ellipse(DEPTH_RATIO.trunk);
+  const armShape = ellipse(DEPTH_RATIO.arm);
+  const legShape = ellipse(DEPTH_RATIO.leg);
+
+  find('trunk').scaleX = trunkShape.scaleX;
+  find('trunk').scaleZ = trunkShape.scaleZ;
+
+  const trunkTopW = trunkTopR * trunkShape.scaleX;
+  const trunkBottomW = trunkBottomR * trunkShape.scaleX;
+  const armTopW = armTopR * armShape.scaleX;
+  const legTopW = legTopR * legShape.scaleX;
+
+  const armX = Math.max(trunkTopW + armTopW * 0.12, armTopW * 1.15);
+  const legX = Math.min(legTopW * 0.94, Math.max(trunkBottomW - legTopW, legTopW * 0.5));
 
   // Anatomical convention: the figure faces the front camera, so its left side is on
   // the viewer's right. The report distinguishes left from right and the asymmetry
@@ -216,12 +249,27 @@ export function buildBodyModel(metrics: MetricValues, heightCm: number): BodyMod
   const sideSign = (side: 'left' | 'right') => (side === 'left' ? 1 : -1);
 
   for (const side of ['left', 'right'] as const) {
-    find(`${side}_arm`).origin[0] = sideSign(side) * armX;
-    find(`${side}_leg`).origin[0] = sideSign(side) * legX;
+    const sign = sideSign(side);
+    const arm = find(`${side}_arm`);
+    arm.origin[0] = sign * armX;
+    arm.rotationZ = sign * ARM_ABDUCTION;
+    arm.scaleX = armShape.scaleX;
+    arm.scaleZ = armShape.scaleZ;
+
+    const leg = find(`${side}_leg`);
+    leg.origin[0] = sign * legX;
+    leg.scaleX = legShape.scaleX;
+    leg.scaleZ = legShape.scaleZ;
   }
 
   const wristR = find('left_arm').outer.at(-1)!;
   const ankleR = find('left_leg').outer.at(-1)!;
+
+  // The wrist has moved with the abducted arm, so hands follow the rotated end
+  // rather than hanging where an unrotated arm would have finished.
+  const reach = armLength - wristR;
+  const wristDrop = reach * Math.cos(ARM_ABDUCTION);
+  const wristOut = reach * Math.sin(ARM_ABDUCTION);
 
   // Unmeasured segments. Sized from height alone and rendered as such — the scan
   // reports nothing about them, so the model must not imply otherwise.
@@ -247,6 +295,8 @@ export function buildBodyModel(metrics: MetricValues, heightCm: number): BodyMod
       measured: false,
       origin: [0, neckTopY + L.head * h, 0],
       length: L.head * h,
+      scaleX: 0.9,
+      scaleZ: 1.12,
       outer: [headR * 0.55, headR, headR * 1.02, headR * 0.92, headR * 0.6],
       muscle: [headR * 0.55, headR, headR * 1.02, headR * 0.92, headR * 0.6],
       mass: { lean: 0, fat: 0 },
@@ -266,7 +316,10 @@ export function buildBodyModel(metrics: MetricValues, heightCm: number): BodyMod
         id: 'hands',
         label: 'Hands',
         measured: false,
-        origin: [sign * armX, shoulderY - 0.015 * h - armLength + wristR, 0],
+        origin: [sign * (armX + wristOut), shoulderY - 0.05 * h - wristDrop, 0],
+        rotationZ: sign * ARM_ABDUCTION,
+        scaleX: 1.25,
+        scaleZ: 0.55,
         length: 0.085 * h,
         outer: [handR * 0.8, handR, handR * 0.95, handR * 0.6],
         muscle: [handR * 0.8, handR, handR * 0.95, handR * 0.6],
@@ -283,7 +336,8 @@ export function buildBodyModel(metrics: MetricValues, heightCm: number): BodyMod
         // otherwise looks identical from every angle.
         origin: [sign * legX, ankleY + ankleR, footR * 0.7],
         length: ankleY + ankleR,
-        scaleZ: 1.9,
+        scaleX: 0.86,
+        scaleZ: 2.2,
         outer: [footR * 0.85, footR, footR * 0.95, footR * 0.7],
         muscle: [footR * 0.85, footR, footR * 0.95, footR * 0.7],
         mass: { lean: 0, fat: 0 },

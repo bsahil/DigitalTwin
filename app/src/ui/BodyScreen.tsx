@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import type { Metric, Profile } from '../lib/db';
 import type { ReportNarrative } from '../lib/parser';
-import { buildBodyModel, type MetricValues, type RegionId } from '../lib/bodyModel';
+import { buildBodyModel, type MetricValues, type RegionId, type Segment } from '../lib/bodyModel';
 import { runDataCheck, type CheckMetric } from '../lib/dataCheck';
 import { BodyView, type CameraPreset, type Layer } from './BodyView';
 import { MetricPanel } from './MetricPanel';
 import { DataCheckPanel } from './DataCheckPanel';
+import { Legend } from './Legend';
 import { Panel, ProvenanceTag, SourceLabel } from './primitives';
 
 const LAYERS: { id: Layer; label: string }[] = [
@@ -13,6 +14,7 @@ const LAYERS: { id: Layer; label: string }[] = [
   { id: 'fat', label: 'Fat' },
   { id: 'muscle', label: 'Muscle' },
   { id: 'balance', label: 'Balance' },
+  { id: 'inside', label: 'Inside' },
 ];
 
 const PRESETS: CameraPreset[] = ['front', 'back', 'left', 'right'];
@@ -46,6 +48,7 @@ const LAYER_NOTE: Record<Layer, string> = {
   fat: 'Colour shows each region’s fat share, compared against your own other regions.',
   muscle: 'The inner form is the muscle volume your report measured for each region.',
   balance: 'Highlights measured left/right differences in muscle mass.',
+  inside: 'Cut through the body to see the compartments your report measured.',
 };
 
 export function BodyScreen({
@@ -93,6 +96,35 @@ export function BodyScreen({
     .map((n) => byName.get(n))
     .filter((m): m is Metric => Boolean(m));
 
+  const kg = (n: number) => `${n.toFixed(1)} kg`;
+
+  function labelFor(segment: Segment): string {
+    if (!segment.measured) return `${segment.label} · not measured`;
+
+    const { lean, fat, visceral } = segment.mass;
+    const pct = (n: number) => `${Math.round(n * 100)}%`;
+
+    if (layer === 'fat') {
+      return `${segment.label} · fat ${kg(fat + (visceral ?? 0))} · ${pct(segment.fatShare)} of region`;
+    }
+    if (layer === 'muscle') {
+      return `${segment.label} · muscle ${kg(lean)} · ${pct(segment.muscleShare)} of region`;
+    }
+    if (layer === 'inside') {
+      return visceral
+        ? `${segment.label} · muscle ${kg(lean)} · fat ${kg(fat)} · visceral ${kg(visceral)}`
+        : `${segment.label} · muscle ${kg(lean)} · fat ${kg(fat)}`;
+    }
+    if (layer === 'balance') {
+      const pair = segment.id.includes('arm') ? model.asymmetry.arms : segment.id.includes('leg') ? model.asymmetry.legs : 0;
+      if (pair === 0) return `${segment.label} · no left/right pair`;
+      const heavier = pair > 0 ? 'left' : 'right';
+      const share = Math.abs(pair) * 100;
+      return `${segment.label} · ${segment.id.startsWith(heavier) ? 'heavier' : 'lighter'} side by ${share.toFixed(1)}%`;
+    }
+    return `${segment.label} · muscle ${kg(lean)} · fat ${kg(fat + (visceral ?? 0))}`;
+  }
+
   const segment = selected ? model.segments.find((s) => s.id === selected) : null;
   const regionMetrics = selected ? REGION_METRICS[selected] : undefined;
 
@@ -126,6 +158,7 @@ export function BodyScreen({
             selected={selected}
             onSelect={setSelected}
             preset={preset}
+            labelFor={labelFor}
           />
 
           <div className="pointer-events-none absolute left-4 top-4 sm:left-6 sm:top-6">
@@ -190,6 +223,10 @@ export function BodyScreen({
           <div className="pointer-events-none absolute bottom-4 left-4 max-w-[58%] text-xs leading-relaxed text-atlas-muted/70 sm:bottom-6 sm:left-6 sm:max-w-xs">
             Generated from your measurements. Not a scan of your anatomy.
             <div className="mt-1 hidden text-atlas-muted/50 sm:block">{LAYER_NOTE[layer]}</div>
+          </div>
+
+          <div className="pointer-events-none absolute right-4 top-16 sm:right-6 sm:top-20">
+            <Legend layer={layer} model={model} />
           </div>
 
           <button
