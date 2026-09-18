@@ -12,6 +12,7 @@ import {
   type Report as StoredReport,
 } from './lib/db';
 import { parsePdf, type ParsedReport } from './lib/parser';
+import { provenanceFor } from './lib/catalog';
 import { UploadScreen } from './ui/UploadScreen';
 import { ProcessingScreen, PROCESSING_STEPS } from './ui/ProcessingScreen';
 import { VerifyScreen, type DraftMetric } from './ui/VerifyScreen';
@@ -145,7 +146,7 @@ export default function App() {
       source_classification: d.source_classification,
       source_reference_range: null,
       source_page: d.source_page,
-      provenance: 'measured',
+      provenance: provenanceFor(d.canonical_name),
       confidence: d.confidence,
       edited_by_user: d.edited_by_user,
     }));

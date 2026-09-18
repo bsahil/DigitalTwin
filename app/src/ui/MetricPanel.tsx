@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import type { Metric } from '../lib/db';
 import { knowledgeFor, missingFor, relatedTo } from '../lib/knowledge';
 import type { Flag } from '../lib/dataCheck';
-import { SourceLabel } from './primitives';
+import { BY_NAME, DERIVED_FROM, provenanceFor } from '../lib/catalog';
+import { ProvenanceTag, SourceLabel } from './primitives';
 
 function Section({
   icon,
@@ -39,6 +40,11 @@ export function MetricPanel({
 }) {
   const [plain, setPlain] = useState(false);
   const knowledge = knowledgeFor(metric.canonical_name);
+  // From the catalog, never the stored row: rows written before provenance existed all say measured.
+  const provenance = provenanceFor(metric.canonical_name);
+  const derivedFrom = (DERIVED_FROM[metric.canonical_name] ?? [])
+    .map((n) => BY_NAME.get(n)?.display_name)
+    .filter((n): n is string => Boolean(n));
 
   const available = useMemo(
     () => new Set(allMetrics.map((m) => m.canonical_name)),
@@ -75,6 +81,7 @@ export function MetricPanel({
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-atlas-muted">
+          <ProvenanceTag level={provenance} />
           <SourceLabel label={metric.source_classification} />
           {metric.source_classification && <span>classification from your report</span>}
           {metric.edited_by_user && (
@@ -115,6 +122,18 @@ export function MetricPanel({
             </Section>
 
             <Section icon="📍" title="Your result">
+              {provenance === 'interpreted' && (
+                <p className="mb-2.5 text-atlas-muted" data-testid="provenance-note">
+                  This is your provider’s own judgement, made against a methodology the report
+                  does not state. It is not a measurement of your body.
+                </p>
+              )}
+              {provenance === 'derived' && derivedFrom.length > 0 && (
+                <p className="mb-2.5 text-atlas-muted" data-testid="provenance-note">
+                  Calculated by your provider from {derivedFrom.join(' and ')}, not measured
+                  separately.
+                </p>
+              )}
               <p>
                 Your report records{' '}
                 <span className="text-atlas-text">
@@ -148,6 +167,35 @@ export function MetricPanel({
                     </li>
                   ))}
                 </ul>
+              </Section>
+            )}
+
+            {knowledge.what_could_add_context.some((n) => available.has(n)) && (
+              <Section icon="🧭" title="Read alongside">
+                <p className="text-xs text-atlas-muted">
+                  Measurements in your report that give this one its context.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2" data-testid="context-chips">
+                  {knowledge.what_could_add_context
+                    .filter((n) => available.has(n))
+                    .map((name) => {
+                      const m = byName.get(name)!;
+                      return (
+                        <button
+                          key={name}
+                          data-testid={`context-${name}`}
+                          onClick={() => onNavigate(name)}
+                          className="rounded-lg border border-atlas-accent/30 bg-atlas-accent/5 px-3 py-1.5 text-left text-xs transition hover:border-atlas-accent hover:text-atlas-accent"
+                        >
+                          {m.display_name}{' '}
+                          <span className="text-atlas-muted">
+                            {m.value}
+                            {m.unit ? ` ${m.unit}` : ''}
+                          </span>
+                        </button>
+                      );
+                    })}
+                </div>
               </Section>
             )}
 

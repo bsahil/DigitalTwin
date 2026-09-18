@@ -34,10 +34,15 @@ export function Button({
  * Provenance is never implied — it is labelled. A reader must be able to tell a value
  * read from the report from one the app computed.
  */
-export function ProvenanceTag({ level }: { level: 'measured' | 'derived' | 'illustrative' }) {
+export function ProvenanceTag({
+  level,
+}: {
+  level: 'measured' | 'derived' | 'interpreted' | 'illustrative';
+}) {
   const styles = {
     measured: 'bg-atlas-accent/10 text-atlas-accent border-atlas-accent/25',
     derived: 'bg-sky-400/10 text-sky-300 border-sky-400/25',
+    interpreted: 'bg-violet-400/10 text-violet-300 border-violet-400/25',
     illustrative: 'bg-amber-400/10 text-amber-300 border-amber-400/25',
   }[level];
 

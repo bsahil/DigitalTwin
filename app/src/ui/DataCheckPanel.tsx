@@ -59,6 +59,28 @@ export function DataCheckPanel({
       </div>
 
       <div className="space-y-8 px-7 pb-10 pt-5">
+        {narrative && (narrative.summary || narrative.critical_findings) && (
+          <section data-testid="report-says">
+            <h3 className="text-xs uppercase tracking-wider text-atlas-muted">
+              What your report says
+            </h3>
+            <p className="mt-2 text-xs text-atlas-muted/80">
+              {provider}’s own written summary, reproduced as given. The flags below are
+              where this text and the report’s tables disagree.
+            </p>
+            {narrative.summary && (
+              <blockquote className="mt-3 border-l-2 border-atlas-line pl-3 text-sm leading-relaxed text-atlas-text/85">
+                {narrative.summary}
+              </blockquote>
+            )}
+            {narrative.critical_findings && (
+              <blockquote className="mt-3 border-l-2 border-atlas-line pl-3 text-sm leading-relaxed text-atlas-text/85">
+                {narrative.critical_findings}
+              </blockquote>
+            )}
+          </section>
+        )}
+
         {flags.length > 0 && (
           <p className="text-sm leading-relaxed text-atlas-muted">
             None of this has been corrected or resolved. Both readings are kept exactly as your

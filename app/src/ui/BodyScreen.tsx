@@ -242,7 +242,9 @@ export function BodyScreen({
               <div className="flex gap-3">
                 <ProvenanceTag level="measured" />
                 <span className="text-atlas-muted">
-                  Fat and muscle mass for trunk, arms and legs — read from your report.
+                  Fat and muscle mass for trunk, arms and legs, as your device reported them.
+                  On a bioimpedance scan “measured” means the device’s primary estimate —
+                  nothing here is physically measured.
                 </span>
               </div>
               <div className="flex gap-3">

@@ -32,6 +32,9 @@ const { chromium } = require('playwright');
   flagTitles.forEach(t => console.log('  -', t));
   const recs = await page.locator('text=What your report recommends').count();
   console.log('PROVIDER RECS SECTION:', recs);
+  const says = await page.locator('[data-testid=report-says]').count();
+  const saysText = says ? await page.locator('[data-testid=report-says]').innerText() : '';
+  console.log('REPORT SAYS SECTION:', says, '| quotes the summary:', saysText.includes('35.6%'), '| quotes critical findings:', saysText.includes('visceral fat level'));
 
   // Open a metric from a flag
   await page.click('[data-testid=flag-metric-fat_free_mass]');
@@ -39,6 +42,10 @@ const { chromium } = require('playwright');
   await page.waitForTimeout(600);
   await shot('3-metric-from-flag');
   const panel = await page.locator('[data-testid=metric-panel]').innerText();
+  console.log('PROVENANCE TAG:', /DERIVED/.test(panel) ? 'DERIVED' : /MEASURED/.test(panel) ? 'MEASURED' : /INTERPRETED/.test(panel) ? 'INTERPRETED' : 'none');
+  const noteN = await page.locator('[data-testid=provenance-note]').count();
+  console.log('PROVENANCE NOTE:', noteN ? (await page.locator('[data-testid=provenance-note]').innerText()).slice(0, 90) : 'none');
+  console.log('CONTEXT CHIPS:', await page.locator('[data-testid=context-chips] button').count());
   const lower = panel.toLowerCase();
   console.log('PANEL SECTIONS:', ['what is this','why does it matter','your result','data check','connected to','don’t we know','how has it changed'].filter(s => lower.includes(s)).join(' | '));
 

@@ -118,3 +118,97 @@ export const SECTION_HEADINGS: Record<string, Category> = {
   'Body Composition Elements': 'composition_elements',
   'Vital Signs & Fitness Goals': 'vitals_targets',
 };
+
+/**
+ * Where each value comes from. On a bioimpedance scan nothing is physically measured:
+ * "measured" means the device reported it as a primary estimate; "derived" is
+ * arithmetic on other reported values; "interpreted" is the provider's own judgement
+ * against a methodology the report does not state. Every catalog metric is listed
+ * explicitly — a test forbids falling through to a default.
+ */
+export const PROVENANCE: Record<string, Provenance> = {
+  weight: 'measured',
+  fat_mass: 'measured',
+  skeletal_muscle_mass: 'measured',
+  lean_mass: 'measured',
+  total_water: 'measured',
+  intracellular_water: 'measured',
+  extracellular_water: 'measured',
+  subcutaneous_fat_mass: 'measured',
+  visceral_fat_mass: 'measured',
+  trunk_fat_mass: 'measured',
+  left_arm_fat_mass: 'measured',
+  right_arm_fat_mass: 'measured',
+  left_leg_fat_mass: 'measured',
+  right_leg_fat_mass: 'measured',
+  trunk_muscle_mass: 'measured',
+  left_arm_muscle_mass: 'measured',
+  right_arm_muscle_mass: 'measured',
+  left_leg_muscle_mass: 'measured',
+  right_leg_muscle_mass: 'measured',
+  protein_mass: 'measured',
+  bone_mass: 'measured',
+  mineral: 'measured',
+  body_cell_mass: 'measured',
+  heart_rate: 'measured',
+
+  bmi: 'derived',
+  fat_percentage: 'derived',
+  skeletal_muscle_percentage: 'derived',
+  lean_mass_percentage: 'derived',
+  water_percentage: 'derived',
+  subcutaneous_fat_percentage: 'derived',
+  protein_percentage: 'derived',
+  trunk_muscle_fat_ratio: 'derived',
+  left_arm_muscle_fat_ratio: 'derived',
+  right_arm_muscle_fat_ratio: 'derived',
+  left_leg_muscle_fat_ratio: 'derived',
+  right_leg_muscle_fat_ratio: 'derived',
+  fat_control: 'derived',
+  muscle_control: 'derived',
+  weight_control: 'derived',
+  ideal_weight: 'derived',
+  fat_free_mass: 'derived',
+  bmr: 'derived',
+  recommended_calorie_intake: 'derived',
+
+  health_score: 'interpreted',
+  body_health_status: 'interpreted',
+  body_age: 'interpreted',
+  body_type: 'interpreted',
+  fat_grade: 'interpreted',
+  upper_lower_muscle_balance: 'interpreted',
+  trunk_limb_muscle_balance: 'interpreted',
+  body_symmetry: 'interpreted',
+  t_score: 'interpreted',
+  z_score: 'interpreted',
+  water_balance: 'interpreted',
+  visceral_fat_level: 'interpreted',
+};
+
+/** Read provenance from the catalog, never from a stored row — rows written before this existed all say "measured". */
+export const provenanceFor = (canonicalName: string): Provenance =>
+  PROVENANCE[canonicalName] ?? 'measured';
+
+/** What each derived value is calculated from, so the panel can say so rather than imply a measurement. */
+export const DERIVED_FROM: Record<string, string[]> = {
+  bmi: ['weight'],
+  fat_percentage: ['fat_mass', 'weight'],
+  skeletal_muscle_percentage: ['skeletal_muscle_mass', 'weight'],
+  lean_mass_percentage: ['lean_mass', 'weight'],
+  water_percentage: ['total_water', 'weight'],
+  subcutaneous_fat_percentage: ['subcutaneous_fat_mass', 'weight'],
+  protein_percentage: ['protein_mass', 'weight'],
+  trunk_muscle_fat_ratio: ['trunk_muscle_mass', 'trunk_fat_mass'],
+  left_arm_muscle_fat_ratio: ['left_arm_muscle_mass', 'left_arm_fat_mass'],
+  right_arm_muscle_fat_ratio: ['right_arm_muscle_mass', 'right_arm_fat_mass'],
+  left_leg_muscle_fat_ratio: ['left_leg_muscle_mass', 'left_leg_fat_mass'],
+  right_leg_muscle_fat_ratio: ['right_leg_muscle_mass', 'right_leg_fat_mass'],
+  fat_control: ['fat_mass'],
+  muscle_control: ['skeletal_muscle_mass'],
+  weight_control: ['weight', 'ideal_weight'],
+  ideal_weight: ['weight', 'bmi'],
+  fat_free_mass: ['weight', 'fat_mass'],
+  bmr: ['fat_free_mass'],
+  recommended_calorie_intake: ['bmr'],
+};

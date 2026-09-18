@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { CATALOG } from '../src/lib/catalog';
+import { CATALOG, DERIVED_FROM, PROVENANCE, provenanceFor } from '../src/lib/catalog';
 import {
   CLUSTERS,
   FORBIDDEN_PHRASES,
@@ -139,6 +139,38 @@ describe('missing data registry', () => {
       for (const ref of m.relevantTo) {
         expect(known.has(ref), `${m.id} references unknown metric ${ref}`).toBe(true);
       }
+    }
+  });
+});
+
+describe('provenance', () => {
+  test('every catalog metric is classified explicitly — none falls through to a default', () => {
+    const missing = CATALOG.map((c) => c.canonical_name).filter((n) => !(n in PROVENANCE));
+    expect(missing, `unclassified: ${missing.join(', ')}`).toEqual([]);
+  });
+
+  test('nothing in the provenance map is a metric the catalog does not know', () => {
+    const known = new Set(CATALOG.map((c) => c.canonical_name));
+    for (const name of Object.keys(PROVENANCE)) expect(known.has(name), name).toBe(true);
+  });
+
+  test('provider judgements and arithmetic are never labelled as measured', () => {
+    for (const name of ['bmi', 'body_age', 'health_score', 'left_leg_muscle_fat_ratio', 'ideal_weight', 'visceral_fat_level']) {
+      expect(provenanceFor(name), name).not.toBe('measured');
+    }
+    for (const name of ['weight', 'fat_mass', 'left_leg_muscle_mass', 'heart_rate']) {
+      expect(provenanceFor(name), name).toBe('measured');
+    }
+  });
+
+  test('every derived metric says what it is derived from, and only from real metrics', () => {
+    const known = new Set(CATALOG.map((c) => c.canonical_name));
+    const derived = Object.entries(PROVENANCE).filter(([, p]) => p === 'derived').map(([n]) => n);
+    for (const name of derived) {
+      const sources = DERIVED_FROM[name];
+      expect(sources, `${name} has no derivation sources`).toBeDefined();
+      expect(sources.length).toBeGreaterThan(0);
+      for (const src of sources) expect(known.has(src), `${name} ← ${src}`).toBe(true);
     }
   });
 });
