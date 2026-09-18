@@ -35,6 +35,29 @@ const { chromium } = require('playwright');
   console.log('HOVER LABEL:', await label.innerText(), '| opacity', await label.evaluate(e => getComputedStyle(e).opacity));
   await shot('3-inside-hover');
 
+  // Pixel probe: in the muscle layer the trunk must read as the solid teal core, not
+  // a tinted grey shell. Teal has a low red:green ratio; the neutral slate does not.
+  await page.click('[data-testid=view-front]');
+  await page.click('[data-testid=layer-muscle]');
+  await page.waitForTimeout(900);
+  const probe = await page.evaluate(() => {
+    const gl = document.querySelector('canvas');
+    const c = document.createElement('canvas');
+    c.width = gl.width; c.height = gl.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(gl, 0, 0);
+    const cx = Math.round(gl.width / 2), cy = Math.round(gl.height * 0.42);
+    const d = ctx.getImageData(cx - 3, cy - 3, 7, 7).data;
+    let r = 0, g = 0, b = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i+1]; b += d[i+2]; n++; }
+    return { r: r / n, g: g / n, b: b / n };
+  });
+  const ratio = probe.r / Math.max(1, probe.g);
+  console.log(`MUSCLE PIXEL PROBE: rgb(${probe.r|0},${probe.g|0},${probe.b|0}) r/g=${ratio.toFixed(2)} -> ${ratio < 0.6 ? 'TEAL CORE VISIBLE' : 'FAIL: reads as tinted shell'}`);
+  if (ratio >= 0.6) process.exitCode = 1;
+
+  await page.click('[data-testid=layer-inside]');
+  await page.waitForTimeout(600);
   await page.click('[data-testid=view-left]');
   await page.waitForTimeout(900);
   await shot('4-inside-side');

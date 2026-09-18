@@ -1,5 +1,5 @@
 import type { BodyModel } from '../lib/bodyModel';
-import { COLORS, hex, type Layer } from './BodyView';
+import { COLORS, hex, type Layer } from '../lib/bodyScene';
 
 /** A ramp swatch built from the same two endpoints the geometry is coloured with. */
 function Ramp({ from, to, steps = 6 }: { from: number; to: number; steps?: number }) {
