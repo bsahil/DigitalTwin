@@ -13,13 +13,15 @@ import {
 } from './lib/db';
 import { parsePdf, type ParsedReport } from './lib/parser';
 import { provenanceFor } from './lib/catalog';
+import { metricsFromAnswers, type BuildAnswers } from './lib/selfReport';
+import { BuildScreen } from './ui/BuildScreen';
 import { UploadScreen } from './ui/UploadScreen';
 import { ProcessingScreen, PROCESSING_STEPS } from './ui/ProcessingScreen';
 import { VerifyScreen, type DraftMetric } from './ui/VerifyScreen';
 import { ReportsScreen, SubjectCheckScreen } from './ui/screens';
 import { BodyScreen } from './ui/BodyScreen';
 
-type View = 'upload' | 'processing' | 'subject' | 'verify' | 'body' | 'reports';
+type View = 'upload' | 'processing' | 'subject' | 'verify' | 'body' | 'reports' | 'build';
 
 interface Pending {
   parsed: ParsedReport;
@@ -39,6 +41,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const [readyReportId, setReadyReportId] = useState<string | null>(null);
+  /** A self-report being edited: its answers and the report id to replace. */
+  const [editing, setEditing] = useState<{ answers: BuildAnswers; reportId: string } | null>(null);
 
   const profiles = useLiveQuery(() => db.profiles.toArray(), [], [] as Profile[]);
   const reports = useLiveQuery(
@@ -127,6 +131,53 @@ export default function App() {
     }
   }
 
+  /**
+   * The questionnaire path: answers become metric rows tagged self-reported or
+   * estimated, and commit exactly like a verified report — without a file.
+   */
+  async function confirmBuild(answers: BuildAnswers) {
+    const { metrics: rows, parsed } = metricsFromAnswers(answers);
+    const reportId = editing?.reportId ?? uid();
+    const date = parsed.measurement_date ?? new Date().toISOString().slice(0, 10);
+
+    let profile = editing ? profiles.find((p) => p.id === reports.find((r) => r.id === editing.reportId)?.profile_id) ?? null : null;
+    profile ??= matchProfile(parsed, profiles);
+    profile ??= await createProfile(parsed, { height_provenance: 'self_reported', skin_tone: answers.skin_tone });
+
+    const metrics: Metric[] = rows.map((r) => ({
+      id: uid(),
+      report_id: reportId,
+      profile_id: profile!.id,
+      canonical_name: r.canonical_name,
+      display_name: r.display_name,
+      value: r.value,
+      unit: r.unit,
+      measurement_date: date,
+      category: parsed.metrics.find((m) => m.canonical_name === r.canonical_name)!.category,
+      source_classification: null,
+      source_reference_range: null,
+      source_page: null,
+      provenance: r.provenance,
+      confidence: 'high',
+      edited_by_user: false,
+    }));
+
+    await commitReport({
+      profile,
+      parsed,
+      metrics,
+      answers,
+      heightCm: answers.height_cm,
+      heightProvenance: 'self_reported',
+      profilePatch: { age: answers.age, sex: parsed.sex, skin_tone: answers.skin_tone },
+    });
+
+    setActiveProfileId(profile.id);
+    setReadyReportId(reportId);
+    setEditing(null);
+    setView('body');
+  }
+
   async function confirmVerification() {
     if (!pending?.profile || !pending.heightCm) return;
 
@@ -158,7 +209,7 @@ export default function App() {
       file: pending.file,
       fileName: pending.file.name,
       heightCm: pending.heightCm,
-      heightEdited: pending.heightEdited,
+      heightProvenance: pending.heightEdited ? 'measured' : 'derived',
     });
 
     setReadyReportId(reportId);
@@ -178,10 +229,14 @@ export default function App() {
           </button>
 
           <nav className="flex gap-5 text-sm sm:ml-6">
-            {(['body', 'reports'] as const).map((v) => (
+            {(['body', 'reports', 'build'] as const).map((v) => (
               <button
                 key={v}
-                onClick={() => setView(v)}
+                data-testid={`nav-${v}`}
+                onClick={() => {
+                  if (v === 'build') setEditing(null);
+                  setView(v);
+                }}
                 disabled={v === 'body' && !current}
                 className={`capitalize disabled:opacity-30 ${
                   view === v ? 'text-atlas-text' : 'text-atlas-muted hover:text-atlas-text'
@@ -214,7 +269,25 @@ export default function App() {
       </header>
 
       <main className="min-h-0 flex-1 overflow-y-auto">
-        {view === 'upload' && <UploadScreen onFile={handleFile} error={error} />}
+        {view === 'upload' && (
+          <UploadScreen
+            onFile={handleFile}
+            error={error}
+            onBuild={() => {
+              setEditing(null);
+              setView('build');
+            }}
+          />
+        )}
+
+        {view === 'build' && (
+          <BuildScreen
+            key={editing?.reportId ?? 'new'}
+            initial={editing?.answers}
+            onSubmit={confirmBuild}
+            onUpload={() => setView('upload')}
+          />
+        )}
 
         {view === 'processing' && <ProcessingScreen step={step} />}
 
@@ -274,6 +347,11 @@ export default function App() {
             profiles={profiles}
             onDelete={deleteReport}
             onUpload={() => setView('upload')}
+            onEdit={(r) => {
+              if (!r.answers) return;
+              setEditing({ answers: r.answers, reportId: r.id });
+              setView('build');
+            }}
           />
         )}
       </main>

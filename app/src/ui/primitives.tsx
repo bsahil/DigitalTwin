@@ -6,12 +6,13 @@ export function Button({
   onClick,
   variant = 'primary',
   disabled,
+  ...rest
 }: {
   children: ReactNode;
   onClick?: () => void;
   variant?: 'primary' | 'ghost' | 'danger';
   disabled?: boolean;
-}) {
+} & Record<`data-${string}`, string>) {
   const styles = {
     primary:
       'bg-atlas-accent text-atlas-bg hover:brightness-110 font-medium disabled:opacity-40',
@@ -22,6 +23,7 @@ export function Button({
 
   return (
     <button
+      {...rest}
       onClick={onClick}
       disabled={disabled}
       className={`rounded-lg px-4 py-2 text-sm transition disabled:cursor-not-allowed ${styles}`}

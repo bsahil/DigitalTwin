@@ -96,6 +96,14 @@ export const CATALOG: CatalogEntry[] = [
   e('body_cell_mass', 'Body cell mass', 'Body Cell Mass', 'kg', 'composition_elements'),
 
   e('heart_rate', 'Heart rate', 'Heart Rate', 'bpm', 'vitals_targets'),
+  // Tape measurements exist only for the questionnaire path; no report the parser knows lists them.
+  e('waist_circumference', 'Waist circumference', 'Waist', 'cm', 'fat_distribution'),
+  e('hip_circumference', 'Hip circumference', 'Hips', 'cm', 'fat_distribution'),
+  e('chest_circumference', 'Chest circumference', 'Chest', 'cm', 'body_composition'),
+  e('left_upper_arm_circumference', 'Left upper arm circumference', 'Left Upper Arm', 'cm', 'muscle'),
+  e('right_upper_arm_circumference', 'Right upper arm circumference', 'Right Upper Arm', 'cm', 'muscle'),
+  e('left_thigh_circumference', 'Left thigh circumference', 'Left Thigh', 'cm', 'muscle'),
+  e('right_thigh_circumference', 'Right thigh circumference', 'Right Thigh', 'cm', 'muscle'),
   e('bmr', 'Basal Metabolic Rate (BMR)', 'BMR', 'kcal', 'vitals_targets'),
   e('recommended_calorie_intake', 'Recommended calorie intake', 'Recommended Calorie Intake', 'kcal', 'vitals_targets'),
   e('ideal_weight', 'Ideal weight', 'Ideal Weight', 'kg', 'vitals_targets'),
@@ -112,7 +120,7 @@ export const byCatalogOrder = (a: { canonical_name: string }, b: { canonical_nam
   (ORDER.get(a.canonical_name) ?? 999) - (ORDER.get(b.canonical_name) ?? 999);
 
 /** Units seen in the source reports. Used to disambiguate optional unit cells. */
-export const UNITS = new Set(['kg', '%', 'points', 'years', 'bpm', 'kcal']);
+export const UNITS = new Set(['kg', '%', 'points', 'years', 'bpm', 'kcal', 'cm']);
 
 /** Section headings, in document order, mapping to the category that follows. */
 export const SECTION_HEADINGS: Record<string, Category> = {
@@ -189,11 +197,26 @@ export const PROVENANCE: Record<string, Provenance> = {
   z_score: 'interpreted',
   water_balance: 'interpreted',
   visceral_fat_level: 'interpreted',
+  waist_circumference: 'measured',
+  hip_circumference: 'measured',
+  chest_circumference: 'measured',
+  left_upper_arm_circumference: 'measured',
+  right_upper_arm_circumference: 'measured',
+  left_thigh_circumference: 'measured',
+  right_thigh_circumference: 'measured',
 };
 
 /** Read provenance from the catalog, never from a stored row — rows written before this existed all say "measured". */
 export const provenanceFor = (canonicalName: string): Provenance =>
   PROVENANCE[canonicalName] ?? 'measured';
+
+/**
+ * A stored row wins only when it says the person typed the value or it was estimated
+ * from what they typed; anything else defers to the catalog, so old rows that all say
+ * "measured" are still corrected.
+ */
+export const effectiveProvenance = (row: { canonical_name: string; provenance?: Provenance }): Provenance =>
+  row.provenance === 'self_reported' || row.provenance === 'estimated' ? row.provenance : provenanceFor(row.canonical_name);
 
 /** What each derived value is calculated from, so the panel can say so rather than imply a measurement. */
 export const DERIVED_FROM: Record<string, string[]> = {

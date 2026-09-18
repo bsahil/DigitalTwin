@@ -1,6 +1,14 @@
 import { useRef, useState } from 'react';
 
-export function UploadScreen({ onFile, error }: { onFile: (f: File) => void; error?: string | null }) {
+export function UploadScreen({
+  onFile,
+  error,
+  onBuild,
+}: {
+  onFile: (f: File) => void;
+  error?: string | null;
+  onBuild?: () => void;
+}) {
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
 
@@ -48,6 +56,16 @@ export function UploadScreen({ onFile, error }: { onFile: (f: File) => void; err
           }}
         />
       </div>
+
+      {onBuild && (
+        <button
+          data-testid="build-start"
+          onClick={onBuild}
+          className="mt-6 rounded-lg border border-atlas-line px-5 py-2.5 text-sm text-atlas-muted transition hover:border-atlas-accent/50 hover:text-atlas-text"
+        >
+          No report? Answer four questions instead
+        </button>
+      )}
 
       {error && (
         <p className="mt-6 rounded-lg border border-red-400/30 bg-red-400/5 px-4 py-3 text-sm text-red-300">

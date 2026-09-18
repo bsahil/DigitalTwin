@@ -125,7 +125,9 @@ describe('fitting questionnaire answers', () => {
     expect(big.achieved.circumferencesM.hip - small.achieved.circumferencesM.hip).toBeGreaterThan(0.1);
     // The whole-body volume is kept while the hip changes: the difference goes elsewhere.
     for (const f of [small, big]) expect(Math.abs(f.achieved.volumesL.total - level1.totalVolumeL!) / level1.totalVolumeL!).toBeLessThan(0.03);
-    expect(big.claims.some((c) => c.level === 'self_reported')).toBe(true);
+    expect(big.claims.some((c) => c.level === 'self_reported' && /Hip drawn at 114\.\d cm, as you entered/.test(c.text))).toBe(true);
+    const unreachable = fitBody(mesh, { ...level1, circumferencesM: { hip: 0.8 } });
+    expect(unreachable.claims.some((c) => /you entered 80\.0 cm; this body shape reaches/.test(c.text))).toBe(true);
   });
 
   test('a neutral sex is a blend and is disclosed', () => {

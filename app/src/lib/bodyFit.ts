@@ -371,11 +371,19 @@ function buildClaims(input: FitInput, fitted: RegionId[], residuals: FitResidual
       text: 'Whether a region fills out in a fat-looking or a muscle-looking way follows its measured ratio, but how that looks is a template choice.',
     });
   }
-  const tape = Object.keys(input.circumferencesM);
-  if (tape.length) {
+  // Each tape value, as drawn. When the shape could not reach a value, say so with
+  // both numbers rather than pretend.
+  const cm = (m: number) => `${(m * 100).toFixed(1)} cm`;
+  for (const [id, want] of Object.entries(input.circumferencesM)) {
+    if (want == null) continue;
+    const got = achieved.circumferencesM[id];
+    const label = id.replace(/_/g, ' ');
+    const close = Math.abs(got - want) <= 0.01;
     claims.push({
       level: 'self_reported',
-      text: `${tape.length} tape measurement${tape.length > 1 ? 's' : ''} you entered set the ${tape.map((t) => t.replace(/_/g, ' ')).join(', ')} of the figure.`,
+      text: close
+        ? `${label[0].toUpperCase()}${label.slice(1)} drawn at ${cm(got)}, as you entered.`
+        : `${label[0].toUpperCase()}${label.slice(1)}: you entered ${cm(want)}; this body shape reaches ${cm(got)} at the given weight, so that is what is drawn.`,
     });
   }
   claims.push({

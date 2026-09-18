@@ -65,11 +65,13 @@ export function ReportsScreen({
   profiles,
   onDelete,
   onUpload,
+  onEdit,
 }: {
   reports: Report[];
   profiles: Profile[];
   onDelete: (id: string) => void;
   onUpload: () => void;
+  onEdit?: (report: Report) => void;
 }) {
   const nameFor = (id: string) =>
     profiles.find((p) => p.id === id)?.subject_name ?? 'Unknown profile';
@@ -99,23 +101,34 @@ export function ReportsScreen({
                   <span className="ml-3 text-sm text-atlas-muted">{nameFor(r.profile_id)}</span>
                 </div>
                 <div className="mt-1 text-xs text-atlas-muted">
-                  {r.provider} body scan · {r.metric_count} measurements · {r.extraction_status}
+                  {r.report_type === 'self_report'
+                    ? `Self-reported · ${r.metric_count} values`
+                    : `${r.provider} body scan · ${r.metric_count} measurements · ${r.extraction_status}`}
                 </div>
               </div>
               <div className="ml-auto flex shrink-0 items-center gap-2">
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    const url = URL.createObjectURL(r.original_file);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = r.file_name;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
-                >
-                  View original
-                </Button>
+                {r.original_file ? (
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      const url = URL.createObjectURL(r.original_file!);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = r.file_name ?? 'report.pdf';
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                  >
+                    View original
+                  </Button>
+                ) : (
+                  r.answers &&
+                  onEdit && (
+                    <Button variant="ghost" data-testid={`edit-answers-${r.id}`} onClick={() => onEdit(r)}>
+                      Edit answers
+                    </Button>
+                  )
+                )}
                 <Button variant="danger" onClick={() => onDelete(r.id)}>
                   Delete
                 </Button>

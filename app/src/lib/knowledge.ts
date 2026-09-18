@@ -57,6 +57,22 @@ const REGION_LABEL: Record<string, string> = {
 
 export const CLUSTERS: Cluster[] = [
   {
+    id: 'tape',
+    title: 'Tape measurements',
+    why: 'A tape records the outside of the body only. Each circumference follows the muscle and fat beneath it together, and a left/right pair shows whether the two sides differ.',
+    members: [
+      'waist_circumference',
+      'hip_circumference',
+      'chest_circumference',
+      'left_upper_arm_circumference',
+      'right_upper_arm_circumference',
+      'left_thigh_circumference',
+      'right_thigh_circumference',
+      'weight',
+      'fat_percentage',
+    ],
+  },
+  {
     id: 'composition_identity',
     title: 'How your weight divides up',
     why: 'These partition total body mass. Fat mass and lean mass should approximately sum to weight, and the percentages are the same division expressed as shares.',
@@ -194,6 +210,16 @@ export interface MissingMeasurement {
 }
 
 export const MISSING_DATA: MissingMeasurement[] = [
+  {
+    id: 'tape_composition',
+    label: 'What is under the tape',
+    context: 'A circumference cannot tell muscle from fat. A body-composition scan reports each region\'s fat and muscle mass separately.',
+    relevantTo: [
+      'waist_circumference', 'hip_circumference', 'chest_circumference',
+      'left_upper_arm_circumference', 'right_upper_arm_circumference',
+      'left_thigh_circumference', 'right_thigh_circumference',
+    ],
+  },
   {
     id: 'blood_lipids',
     label: 'Blood lipid panel',

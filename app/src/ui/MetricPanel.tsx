@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import type { Metric } from '../lib/db';
 import { knowledgeFor, missingFor, relatedTo } from '../lib/knowledge';
 import type { Flag } from '../lib/dataCheck';
-import { BY_NAME, DERIVED_FROM, provenanceFor } from '../lib/catalog';
+import { BY_NAME, DERIVED_FROM, effectiveProvenance } from '../lib/catalog';
+import { BUILD_COPY } from './buildCopy';
 import { ProvenanceTag, SourceLabel } from './primitives';
 
 function Section({
@@ -40,8 +41,9 @@ export function MetricPanel({
 }) {
   const [plain, setPlain] = useState(false);
   const knowledge = knowledgeFor(metric.canonical_name);
-  // From the catalog, never the stored row: rows written before provenance existed all say measured.
-  const provenance = provenanceFor(metric.canonical_name);
+  // From the catalog unless the row says the person typed or estimated it: rows written
+  // before provenance existed all say measured.
+  const provenance = effectiveProvenance(metric);
   const derivedFrom = (DERIVED_FROM[metric.canonical_name] ?? [])
     .map((n) => BY_NAME.get(n)?.display_name)
     .filter((n): n is string => Boolean(n));
@@ -132,6 +134,16 @@ export function MetricPanel({
                 <p className="mb-2.5 text-atlas-muted" data-testid="provenance-note">
                   Calculated by your provider from {derivedFrom.join(' and ')}, not measured
                   separately.
+                </p>
+              )}
+              {provenance === 'estimated' && (
+                <p className="mb-2.5 text-atlas-muted" data-testid="provenance-note">
+                  {BUILD_COPY.metricNotes.estimated}
+                </p>
+              )}
+              {provenance === 'self_reported' && (
+                <p className="mb-2.5 text-atlas-muted" data-testid="provenance-note">
+                  {BUILD_COPY.metricNotes.self_reported}
                 </p>
               )}
               <p>

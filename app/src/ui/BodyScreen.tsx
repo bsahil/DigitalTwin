@@ -149,6 +149,15 @@ export function BodyScreen({
 
   const segment = selected ? model.segments.find((s) => s.id === selected) : null;
   const hasRegions = model.segments.some((s) => s.measured);
+
+  const TAPE_FOR: Record<string, string[]> = {
+    trunk: ['waist_circumference', 'hip_circumference', 'chest_circumference'],
+    left_arm: ['left_upper_arm_circumference'],
+    right_arm: ['right_upper_arm_circumference'],
+    left_leg: ['left_thigh_circumference'],
+    right_leg: ['right_thigh_circumference'],
+  };
+  const tapeFor = (id: RegionId) => (TAPE_FOR[id] ?? []).map((n) => byName.get(n)).filter((m): m is Metric => Boolean(m));
   const regionMetrics = selected ? REGION_METRICS[selected] : undefined;
 
   function open(canonicalName: string) {
@@ -488,10 +497,32 @@ export function BodyScreen({
                       Explain these numbers
                     </button>
                   </>
+                ) : tapeFor(segment.id).length > 0 ? (
+                  <div className="mt-5 space-y-2">
+                    <p className="text-xs text-atlas-muted">Tape measurements you entered for this region.</p>
+                    {tapeFor(segment.id).map((m) => (
+                      <button
+                        key={m.canonical_name}
+                        data-testid={`region-metric-${m.canonical_name}`}
+                        onClick={() => open(m.canonical_name)}
+                        className="w-full rounded-lg border border-atlas-line p-4 text-left transition hover:border-atlas-accent/50"
+                      >
+                        <div className="text-xs uppercase tracking-wider text-atlas-muted">{m.display_name}</div>
+                        <div className="mt-1 flex items-baseline gap-2">
+                          <span className="text-2xl font-light">{m.value}</span>
+                          <span className="text-sm text-atlas-muted">{m.unit ?? ''}</span>
+                        </div>
+                        <div className="mt-2">
+                          <ProvenanceTag level="self_reported" />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 ) : (
                   <p className="mt-5 text-sm leading-relaxed text-atlas-muted">
-                    Not measured in this report. Your scan records fat and muscle for the trunk,
-                    arms and legs only.
+                    {selfReport
+                      ? 'Nothing entered for this region. Add a tape measurement, or upload a body-composition report, to set it from data.'
+                      : 'Not measured in this report. Your scan records fat and muscle for the trunk, arms and legs only.'}
                   </p>
                 )}
               </div>

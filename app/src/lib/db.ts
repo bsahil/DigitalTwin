@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { Category, Provenance } from './catalog';
 import type { ParsedReport, ReportNarrative } from './parser';
+import type { BuildAnswers } from './selfReport';
 
 export interface Profile {
   id: string;
@@ -18,11 +19,14 @@ export interface Report {
   id: string;
   profile_id: string;
   provider: string;
-  report_type: 'body_composition';
+  report_type: 'body_composition' | 'self_report';
   measurement_date: string;
   uploaded_at: string;
-  original_file: Blob;
-  file_name: string;
+  /** Absent for a self-report: there is no document, only answers. */
+  original_file?: Blob;
+  file_name?: string;
+  /** The questionnaire as answered, so it can be edited later. */
+  answers?: BuildAnswers;
   extraction_status: 'parsed' | 'verified';
   metric_count: number;
   /** The report's own prose, kept so Data Check can compare it against the tables. */
@@ -89,7 +93,7 @@ export function matchProfile(parsed: ParsedReport, profiles: Profile[]): Profile
   );
 }
 
-export async function createProfile(parsed: ParsedReport): Promise<Profile> {
+export async function createProfile(parsed: ParsedReport, extra: Partial<Profile> = {}): Promise<Profile> {
   const profile: Profile = {
     id: uid(),
     subject_name: parsed.subject_name,
@@ -98,6 +102,7 @@ export async function createProfile(parsed: ParsedReport): Promise<Profile> {
     height_cm: parsed.height_cm_derived,
     height_provenance: 'derived',
     created_at: new Date().toISOString(),
+    ...extra,
   };
   await db.profiles.add(profile);
   return profile;
@@ -107,35 +112,43 @@ export interface CommitInput {
   profile: Profile;
   parsed: ParsedReport;
   metrics: Metric[];
-  file: Blob;
-  fileName: string;
+  /** The document, when there is one. A self-report has answers instead. */
+  file?: Blob;
+  fileName?: string;
+  answers?: BuildAnswers;
   heightCm: number;
-  heightEdited: boolean;
+  heightProvenance: Provenance;
+  /** Extra profile fields to store alongside the height, e.g. a chosen skin tone. */
+  profilePatch?: Partial<Profile>;
 }
 
 export async function commitReport(input: CommitInput): Promise<Report> {
-  const { profile, parsed, metrics, file, fileName, heightCm, heightEdited } = input;
+  const { profile, parsed, metrics, file, fileName, answers, heightCm, heightProvenance, profilePatch } = input;
+  const id = metrics[0]?.report_id ?? uid();
 
   const report: Report = {
-    id: metrics[0]?.report_id ?? uid(),
+    id,
     profile_id: profile.id,
     provider: parsed.provider,
-    report_type: 'body_composition',
+    report_type: answers ? 'self_report' : 'body_composition',
     measurement_date: parsed.measurement_date ?? new Date().toISOString().slice(0, 10),
     uploaded_at: new Date().toISOString(),
-    original_file: file,
-    file_name: fileName,
+    ...(file ? { original_file: file, file_name: fileName } : {}),
+    ...(answers ? { answers } : {}),
     extraction_status: 'verified',
     metric_count: metrics.length,
     narrative: parsed.narrative,
   };
 
   await db.transaction('rw', db.reports, db.metrics, db.profiles, async () => {
+    // Re-committing the same id (an edited questionnaire) replaces its rows outright.
+    await db.metrics.where('report_id').equals(id).delete();
     await db.reports.put(report);
     await db.metrics.bulkPut(metrics);
     await db.profiles.update(profile.id, {
       height_cm: heightCm,
-      height_provenance: heightEdited ? 'measured' : 'derived',
+      height_provenance: heightProvenance,
+      ...profilePatch,
     });
   });
 
