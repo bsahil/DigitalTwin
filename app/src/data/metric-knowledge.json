@@ -1,0 +1,406 @@
+{
+  "_note": "Generated once at build time, not at runtime. Every string here is reviewable and editable. Entries describe what a metric IS and why it is generally tracked — never what a particular value indicates about a particular person. That pairing happens at runtime, using the reader's own value and their report's own classification.",
+
+  "weight": {
+    "definition": "Total body mass measured on the scale, including tissue, bone, organs and body water.",
+    "plain_language": "How much your whole body weighs.",
+    "why_it_matters": "Weight is the total that every other composition measure divides up. On its own it says nothing about what that mass is made of.",
+    "measurement_limitations": "Body weight shifts through the day with food, drink and hydration. Comparisons are most useful when taken under similar conditions.",
+    "what_could_add_context": ["fat_mass", "lean_mass", "fat_percentage"]
+  },
+  "bmi": {
+    "definition": "Body Mass Index: weight divided by height squared.",
+    "plain_language": "A number comparing your weight to your height. It does not know what your weight is made of.",
+    "why_it_matters": "BMI is quick to calculate and widely used for population statistics, which is why it appears on most reports.",
+    "measurement_limitations": "BMI cannot distinguish fat from muscle or bone, so two people with the same BMI can have very different body composition. A fat percentage measurement describes something BMI does not.",
+    "what_could_add_context": ["fat_percentage", "fat_mass", "skeletal_muscle_mass"]
+  },
+  "fat_mass": {
+    "definition": "The estimated mass of adipose tissue in the body.",
+    "plain_language": "How much of your body weight is fat, expressed as a weight rather than a percentage.",
+    "why_it_matters": "Fat mass and fat percentage move differently when body weight changes, so seeing both can clarify what a change in weight consisted of.",
+    "measurement_limitations": "This is an estimate from a bioelectrical impedance device rather than a direct measurement of tissue.",
+    "what_could_add_context": ["fat_percentage", "subcutaneous_fat_mass", "visceral_fat_mass", "weight"]
+  },
+  "fat_percentage": {
+    "definition": "Fat mass as a proportion of total body weight.",
+    "plain_language": "What share of your body is fat.",
+    "why_it_matters": "Body composition describes something weight alone does not. Fat percentage and BMI can be classified differently in the same report because they measure different things.",
+    "measurement_limitations": "Impedance-based estimates are sensitive to hydration, recent meals and recent exercise. Reference ranges differ between devices and between manufacturers.",
+    "what_could_add_context": ["bmi", "fat_mass", "lean_mass", "visceral_fat_mass"]
+  },
+  "skeletal_muscle_mass": {
+    "definition": "The estimated mass of skeletal muscle — the muscle attached to the skeleton and used for movement.",
+    "plain_language": "The muscle you move with, as a weight.",
+    "why_it_matters": "Skeletal muscle is a subset of lean tissue, so it is always smaller than lean mass. Both are commonly tracked alongside resistance training.",
+    "measurement_limitations": "Skeletal muscle mass and the per-region muscle values in the same report are different quantities and will not add up to each other.",
+    "what_could_add_context": ["lean_mass", "protein_mass", "body_cell_mass"]
+  },
+  "skeletal_muscle_percentage": {
+    "definition": "Skeletal muscle mass as a proportion of total body weight.",
+    "plain_language": "What share of your body is movement muscle.",
+    "why_it_matters": "Expressing muscle as a share makes it comparable across changes in body weight.",
+    "measurement_limitations": "Because it is a share of total weight, it can move when weight changes even if muscle mass itself has not.",
+    "what_could_add_context": ["skeletal_muscle_mass", "fat_percentage", "weight"]
+  },
+  "lean_mass": {
+    "definition": "Body mass that is not fat: muscle, organs, connective tissue and body water.",
+    "plain_language": "Everything in your body that is not fat.",
+    "why_it_matters": "Lean mass is where most body water and most metabolically active tissue sits, which is why basal metabolic rate estimates are usually calculated from it.",
+    "measurement_limitations": "Definitions vary between devices — some include bone mineral in lean mass and some report it separately as fat-free mass, so two figures labelled differently may describe the same tissue.",
+    "what_could_add_context": ["fat_free_mass", "skeletal_muscle_mass", "total_water", "bmr"]
+  },
+  "lean_mass_percentage": {
+    "definition": "Lean mass as a proportion of total body weight.",
+    "plain_language": "What share of your body is not fat.",
+    "why_it_matters": "Fat percentage and lean percentage describe the two sides of the same division of body weight.",
+    "measurement_limitations": "Whether bone mineral is counted inside lean mass affects this figure, and the convention is not always stated in the report.",
+    "what_could_add_context": ["lean_mass", "fat_percentage", "bone_mass"]
+  },
+  "total_water": {
+    "definition": "The estimated total mass of water in the body, inside and outside cells.",
+    "plain_language": "How much of your body weight is water.",
+    "why_it_matters": "Water is the largest single component of body weight and sits mostly within lean tissue, so water and lean mass tend to move together.",
+    "measurement_limitations": "Bioelectrical impedance estimates body composition by passing a small current through the body, so hydration at the time of the scan directly affects the reading.",
+    "what_could_add_context": ["intracellular_water", "extracellular_water", "lean_mass"]
+  },
+  "water_percentage": {
+    "definition": "Total body water as a proportion of body weight.",
+    "plain_language": "What share of your body is water.",
+    "why_it_matters": "Because water sits mostly in lean tissue, a higher fat percentage generally comes with a lower water percentage.",
+    "measurement_limitations": "Sensitive to hydration, recent drinking and recent exercise. A single reading describes one moment.",
+    "what_could_add_context": ["total_water", "fat_percentage", "water_balance"]
+  },
+  "health_score": {
+    "definition": "A summary score calculated by the scan provider from the measurements in the report.",
+    "plain_language": "The provider's own overall score for this scan.",
+    "why_it_matters": "It is a convenient summary, but it is defined by the device manufacturer rather than by a clinical standard.",
+    "measurement_limitations": "The formula behind it is set by the provider and is not always published, so the same body could score differently on another device.",
+    "what_could_add_context": ["body_health_status", "body_age"],
+    "safety_note": "Provider-derived score. It is not a clinical assessment and is not comparable across devices."
+  },
+  "body_health_status": {
+    "definition": "A category the scan provider assigns based on its own summary of the measurements.",
+    "plain_language": "The provider's one-word verdict on this scan.",
+    "why_it_matters": "It reflects how the provider's formula weighs the numbers in the report, not an independent evaluation.",
+    "measurement_limitations": "The rules behind the category are defined by the provider and are not usually stated in the report.",
+    "what_could_add_context": ["health_score", "fat_percentage"],
+    "safety_note": "Provider-derived category. Worth discussing with a healthcare professional rather than acting on directly."
+  },
+  "body_age": {
+    "definition": "A figure the provider derives by comparing measurements against its own age-related reference data.",
+    "plain_language": "A number the device presents as an age, calculated from your measurements.",
+    "why_it_matters": "It is designed to make composition data feel intuitive. Its meaning depends entirely on the methodology the provider used.",
+    "measurement_limitations": "Body age is not biological age and has no standard definition. Different providers calculate it differently.",
+    "what_could_add_context": ["health_score", "skeletal_muscle_mass", "fat_percentage"],
+    "safety_note": "Provider-derived metric. It should not be read as a measurement of ageing."
+  },
+  "body_type": {
+    "definition": "A category the provider assigns by combining fat and muscle measurements.",
+    "plain_language": "The provider's shorthand label for the overall pattern in your numbers.",
+    "why_it_matters": "It summarises the relationship between fat and muscle in one phrase, which can be a useful starting point for reading the detail.",
+    "measurement_limitations": "The thresholds behind the label are the provider's own and are not usually published.",
+    "what_could_add_context": ["fat_percentage", "skeletal_muscle_mass", "bmi"]
+  },
+  "body_symmetry": {
+    "definition": "A provider-calculated comparison of measurements between the left and right sides of the body.",
+    "plain_language": "A score for how closely your two sides match.",
+    "why_it_matters": "Side-to-side differences in muscle are common and can be associated with handedness, sport or training history.",
+    "measurement_limitations": "A single symmetry score can summarise away differences that are visible in the individual left and right measurements.",
+    "what_could_add_context": ["left_arm_muscle_mass", "right_arm_muscle_mass", "left_leg_muscle_mass", "right_leg_muscle_mass"]
+  },
+  "t_score": {
+    "definition": "A comparison of a bone-related measurement against a young adult reference population, expressed in standard deviations.",
+    "plain_language": "How your bone measurement compares with a typical healthy young adult.",
+    "why_it_matters": "T-score and Z-score compare the same measurement against different reference groups, which is why they can differ.",
+    "measurement_limitations": "T-scores from a body-composition device are not equivalent to a clinical bone density scan such as DEXA.",
+    "what_could_add_context": ["z_score", "bone_mass", "mineral"],
+    "safety_note": "Bone density questions are worth discussing with a healthcare professional, who may use a clinical scan."
+  },
+  "z_score": {
+    "definition": "A comparison of a bone-related measurement against a reference population of the same age and sex, in standard deviations.",
+    "plain_language": "How your bone measurement compares with others of your age and sex.",
+    "why_it_matters": "Because the reference group is age-matched, a Z-score can read differently from a T-score on the same measurement.",
+    "measurement_limitations": "Derived from a body-composition device rather than a clinical bone density scan.",
+    "what_could_add_context": ["t_score", "bone_mass"]
+  },
+
+  "subcutaneous_fat_mass": {
+    "definition": "Estimated fat stored directly under the skin, as opposed to around the organs.",
+    "plain_language": "The fat just beneath your skin — the kind you can pinch.",
+    "why_it_matters": "Subcutaneous and visceral fat are different compartments and are tracked separately because they behave differently.",
+    "measurement_limitations": "The split between compartments is estimated by the device rather than imaged directly.",
+    "what_could_add_context": ["visceral_fat_mass", "fat_mass", "trunk_fat_mass"]
+  },
+  "subcutaneous_fat_percentage": {
+    "definition": "Subcutaneous fat as a proportion of body weight.",
+    "plain_language": "What share of your body is fat sitting under the skin.",
+    "why_it_matters": "Expressing the compartment as a share makes it comparable as weight changes.",
+    "measurement_limitations": "Shares the estimation limits of the underlying compartment split.",
+    "what_could_add_context": ["subcutaneous_fat_mass", "fat_percentage"]
+  },
+  "visceral_fat_mass": {
+    "definition": "Estimated fat stored deeper in the abdomen, around the internal organs.",
+    "plain_language": "Fat held deep in your belly, around your organs rather than under your skin.",
+    "why_it_matters": "Visceral fat is tracked separately from subcutaneous fat because research associates the two compartments with different metabolic patterns.",
+    "measurement_limitations": "Estimated from impedance rather than imaged. Devices may report visceral fat as both a mass and an index, on different scales.",
+    "what_could_add_context": ["visceral_fat_level", "subcutaneous_fat_mass", "trunk_fat_mass"],
+    "safety_note": "A body-composition scan alone cannot determine metabolic health. Blood measurements can provide context that this scan does not."
+  },
+  "visceral_fat_level": {
+    "definition": "An index the provider assigns to visceral fat, on its own scale rather than in kilograms.",
+    "plain_language": "The device's own rating for deep abdominal fat, as a level rather than a weight.",
+    "why_it_matters": "Because this is an index and visceral fat mass is a weight, the two can carry different classifications in the same report even though they describe the same tissue.",
+    "measurement_limitations": "The scale is defined by the manufacturer and is not comparable across devices.",
+    "what_could_add_context": ["visceral_fat_mass"]
+  },
+  "trunk_fat_mass": {
+    "definition": "Estimated fat mass in the torso region.",
+    "plain_language": "How much fat the scan assigns to your torso.",
+    "why_it_matters": "The trunk usually holds the largest share of body fat, and regional values show how fat is distributed rather than just how much there is.",
+    "measurement_limitations": "Regional values in this report cover subcutaneous fat; visceral fat is reported separately and is not included in the regional figures.",
+    "what_could_add_context": ["visceral_fat_mass", "trunk_muscle_mass", "trunk_muscle_fat_ratio"]
+  },
+  "left_arm_fat_mass": {
+    "definition": "Estimated fat mass in the left arm.",
+    "plain_language": "How much fat the scan assigns to your left arm.",
+    "why_it_matters": "Comparing the same measurement on both sides shows distribution that a whole-body figure hides.",
+    "measurement_limitations": "Segmental estimates depend on correct electrode contact and posture during the scan.",
+    "what_could_add_context": ["right_arm_fat_mass", "left_arm_muscle_mass", "left_arm_muscle_fat_ratio"]
+  },
+  "right_arm_fat_mass": {
+    "definition": "Estimated fat mass in the right arm.",
+    "plain_language": "How much fat the scan assigns to your right arm.",
+    "why_it_matters": "Side-to-side comparison is what makes a regional figure informative.",
+    "measurement_limitations": "Segmental estimates depend on correct electrode contact and posture during the scan.",
+    "what_could_add_context": ["left_arm_fat_mass", "right_arm_muscle_mass", "right_arm_muscle_fat_ratio"]
+  },
+  "left_leg_fat_mass": {
+    "definition": "Estimated fat mass in the left leg.",
+    "plain_language": "How much fat the scan assigns to your left leg.",
+    "why_it_matters": "Legs carry a large share of both fat and muscle, so regional values here move the whole-body totals noticeably.",
+    "measurement_limitations": "Segmental estimates depend on correct electrode contact and posture during the scan.",
+    "what_could_add_context": ["right_leg_fat_mass", "left_leg_muscle_mass", "left_leg_muscle_fat_ratio"]
+  },
+  "right_leg_fat_mass": {
+    "definition": "Estimated fat mass in the right leg.",
+    "plain_language": "How much fat the scan assigns to your right leg.",
+    "why_it_matters": "Comparing both legs can surface differences that a single total would not show.",
+    "measurement_limitations": "Segmental estimates depend on correct electrode contact and posture during the scan.",
+    "what_could_add_context": ["left_leg_fat_mass", "right_leg_muscle_mass", "right_leg_muscle_fat_ratio"]
+  },
+  "fat_control": {
+    "definition": "A provider-calculated suggestion for how much fat mass would need to change to reach the provider's target.",
+    "plain_language": "The device's own figure for how far your fat mass is from its target. A negative number means the target is lower than the current value.",
+    "why_it_matters": "It is a target derived from the provider's reference model, not a measurement of your body.",
+    "measurement_limitations": "The target depends on the provider's chosen reference and may not reflect goals set with a healthcare professional.",
+    "what_could_add_context": ["fat_mass", "ideal_weight", "weight_control"],
+    "safety_note": "A provider-calculated target rather than personal advice. Worth discussing before acting on it."
+  },
+  "fat_grade": {
+    "definition": "A category the provider assigns to the overall fat picture.",
+    "plain_language": "The provider's shorthand label for your fat measurements.",
+    "why_it_matters": "It summarises several fat measurements into one word, which can differ from how individual fat measurements are classified.",
+    "measurement_limitations": "The thresholds are the provider's own.",
+    "what_could_add_context": ["fat_percentage", "fat_mass", "visceral_fat_mass"]
+  },
+  "trunk_muscle_fat_ratio": {
+    "definition": "The ratio of muscle to fat in the torso, calculated from the two regional measurements.",
+    "plain_language": "How much muscle your torso holds compared with how much fat.",
+    "why_it_matters": "A ratio can move even when neither mass changes much, because it reflects the relationship between them rather than either value alone.",
+    "measurement_limitations": "Derived from two estimates, so it carries the uncertainty of both.",
+    "what_could_add_context": ["trunk_muscle_mass", "trunk_fat_mass"]
+  },
+  "left_arm_muscle_fat_ratio": {
+    "definition": "The ratio of muscle to fat in the left arm.",
+    "plain_language": "How much muscle your left arm holds compared with how much fat.",
+    "why_it_matters": "Ratios make the two sides comparable even when their absolute masses differ.",
+    "measurement_limitations": "Derived from two estimates, so it carries the uncertainty of both.",
+    "what_could_add_context": ["left_arm_muscle_mass", "left_arm_fat_mass", "right_arm_muscle_fat_ratio"]
+  },
+  "right_arm_muscle_fat_ratio": {
+    "definition": "The ratio of muscle to fat in the right arm.",
+    "plain_language": "How much muscle your right arm holds compared with how much fat.",
+    "why_it_matters": "Comparing the ratio on both sides is often more informative than comparing raw masses.",
+    "measurement_limitations": "Derived from two estimates, so it carries the uncertainty of both.",
+    "what_could_add_context": ["right_arm_muscle_mass", "right_arm_fat_mass", "left_arm_muscle_fat_ratio"]
+  },
+  "left_leg_muscle_fat_ratio": {
+    "definition": "The ratio of muscle to fat in the left leg.",
+    "plain_language": "How much muscle your left leg holds compared with how much fat.",
+    "why_it_matters": "Legs often show the clearest ratio differences between sides.",
+    "measurement_limitations": "Derived from two estimates, so it carries the uncertainty of both.",
+    "what_could_add_context": ["left_leg_muscle_mass", "left_leg_fat_mass", "right_leg_muscle_fat_ratio"]
+  },
+  "right_leg_muscle_fat_ratio": {
+    "definition": "The ratio of muscle to fat in the right leg.",
+    "plain_language": "How much muscle your right leg holds compared with how much fat.",
+    "why_it_matters": "Comparing both legs' ratios can surface an imbalance that totals hide.",
+    "measurement_limitations": "Derived from two estimates, so it carries the uncertainty of both.",
+    "what_could_add_context": ["right_leg_muscle_mass", "right_leg_fat_mass", "left_leg_muscle_fat_ratio"]
+  },
+
+  "muscle_control": {
+    "definition": "A provider-calculated suggestion for how much muscle mass would need to change to reach the provider's target.",
+    "plain_language": "The device's own figure for how far your muscle mass is from its target.",
+    "why_it_matters": "Like the other control values, it is a target from the provider's reference model rather than a measurement.",
+    "measurement_limitations": "Depends on the provider's chosen reference population.",
+    "what_could_add_context": ["skeletal_muscle_mass", "fat_control"],
+    "safety_note": "A provider-calculated target rather than personal advice."
+  },
+  "left_arm_muscle_mass": {
+    "definition": "Estimated lean soft tissue in the left arm.",
+    "plain_language": "How much muscle the scan assigns to your left arm.",
+    "why_it_matters": "Regional muscle values are what make side-to-side and upper/lower comparisons possible.",
+    "measurement_limitations": "This regional figure is lean tissue for the segment and is a different quantity from whole-body skeletal muscle mass, so the regions will not sum to it.",
+    "what_could_add_context": ["right_arm_muscle_mass", "left_arm_fat_mass", "body_symmetry"]
+  },
+  "right_arm_muscle_mass": {
+    "definition": "Estimated lean soft tissue in the right arm.",
+    "plain_language": "How much muscle the scan assigns to your right arm.",
+    "why_it_matters": "A difference between arms is common and can be associated with handedness or training.",
+    "measurement_limitations": "A different quantity from whole-body skeletal muscle mass; the regions will not sum to it.",
+    "what_could_add_context": ["left_arm_muscle_mass", "right_arm_fat_mass", "body_symmetry"]
+  },
+  "left_leg_muscle_mass": {
+    "definition": "Estimated lean soft tissue in the left leg.",
+    "plain_language": "How much muscle the scan assigns to your left leg.",
+    "why_it_matters": "Legs hold the largest share of body muscle, so leg values move whole-body figures most.",
+    "measurement_limitations": "A different quantity from whole-body skeletal muscle mass; the regions will not sum to it.",
+    "what_could_add_context": ["right_leg_muscle_mass", "left_leg_fat_mass", "upper_lower_muscle_balance"]
+  },
+  "right_leg_muscle_mass": {
+    "definition": "Estimated lean soft tissue in the right leg.",
+    "plain_language": "How much muscle the scan assigns to your right leg.",
+    "why_it_matters": "Comparing both legs is the most direct read on lower-body balance in this report.",
+    "measurement_limitations": "A different quantity from whole-body skeletal muscle mass; the regions will not sum to it.",
+    "what_could_add_context": ["left_leg_muscle_mass", "right_leg_fat_mass", "upper_lower_muscle_balance"]
+  },
+  "trunk_muscle_mass": {
+    "definition": "Estimated lean soft tissue in the torso.",
+    "plain_language": "How much muscle the scan assigns to your torso.",
+    "why_it_matters": "The trunk holds the largest single share of lean tissue, so it dominates the whole-body lean figure.",
+    "measurement_limitations": "A different quantity from whole-body skeletal muscle mass; the regions will not sum to it.",
+    "what_could_add_context": ["trunk_fat_mass", "trunk_muscle_fat_ratio", "trunk_limb_muscle_balance"]
+  },
+  "upper_lower_muscle_balance": {
+    "definition": "A provider-calculated comparison of muscle in the upper body against the lower body.",
+    "plain_language": "How your arm muscle compares with your leg muscle.",
+    "why_it_matters": "Upper and lower body muscle often develop unevenly depending on activity, and this summarises that relationship.",
+    "measurement_limitations": "A single ratio summarising four regional estimates.",
+    "what_could_add_context": ["left_arm_muscle_mass", "left_leg_muscle_mass", "trunk_limb_muscle_balance"]
+  },
+  "trunk_limb_muscle_balance": {
+    "definition": "A provider-calculated comparison of torso muscle against limb muscle.",
+    "plain_language": "How your torso muscle compares with the muscle in your arms and legs.",
+    "why_it_matters": "It describes the distribution of lean tissue rather than the total amount.",
+    "measurement_limitations": "A single ratio summarising several regional estimates.",
+    "what_could_add_context": ["trunk_muscle_mass", "upper_lower_muscle_balance", "body_symmetry"]
+  },
+
+  "intracellular_water": {
+    "definition": "The estimated mass of water held inside the body's cells.",
+    "plain_language": "The water inside your cells.",
+    "why_it_matters": "Most body water sits inside cells, and the split between inside and outside is tracked because the balance between them is itself a measurement.",
+    "measurement_limitations": "The split between compartments is estimated from impedance at different frequencies and is affected by hydration at the time of the scan.",
+    "what_could_add_context": ["extracellular_water", "total_water", "water_balance", "body_cell_mass"]
+  },
+  "extracellular_water": {
+    "definition": "The estimated mass of water held outside the cells, including blood plasma and the fluid between cells.",
+    "plain_language": "The water around your cells rather than inside them.",
+    "why_it_matters": "Intracellular and extracellular water are reported separately because their ratio is the basis of the water balance figure.",
+    "measurement_limitations": "Sensitive to hydration, posture and recent activity.",
+    "what_could_add_context": ["intracellular_water", "total_water", "water_balance"]
+  },
+  "water_balance": {
+    "definition": "A provider-calculated ratio describing how body water is divided between the inside and outside of cells.",
+    "plain_language": "How your body's water is split between inside and outside your cells.",
+    "why_it_matters": "The ratio describes distribution rather than amount, so it can be classified differently from total water.",
+    "measurement_limitations": "Derived from two estimates and defined on the provider's own scale.",
+    "what_could_add_context": ["intracellular_water", "extracellular_water", "total_water"]
+  },
+
+  "protein_mass": {
+    "definition": "The estimated mass of protein in the body, most of it in muscle tissue.",
+    "plain_language": "How much of your body is protein — largely the solid part of muscle.",
+    "why_it_matters": "Protein mass is a component of lean tissue, so it tends to move with muscle measurements.",
+    "measurement_limitations": "Derived from the device's model of body composition rather than measured directly.",
+    "what_could_add_context": ["skeletal_muscle_mass", "body_cell_mass", "lean_mass"]
+  },
+  "protein_percentage": {
+    "definition": "Protein mass as a proportion of body weight.",
+    "plain_language": "What share of your body is protein.",
+    "why_it_matters": "As a share it stays comparable as body weight changes.",
+    "measurement_limitations": "Carries the uncertainty of the underlying protein estimate.",
+    "what_could_add_context": ["protein_mass", "skeletal_muscle_percentage"]
+  },
+  "bone_mass": {
+    "definition": "The estimated mass of bone mineral content in the body.",
+    "plain_language": "Roughly how much your skeleton weighs.",
+    "why_it_matters": "Bone mass changes slowly compared with fat and muscle, so it is usually a stable part of body weight.",
+    "measurement_limitations": "An impedance-based estimate, not a clinical bone density measurement.",
+    "what_could_add_context": ["mineral", "t_score", "z_score"],
+    "safety_note": "Bone health questions are worth discussing with a healthcare professional, who may use a clinical scan."
+  },
+  "mineral": {
+    "definition": "The estimated total mineral content of the body, including bone and soft tissue minerals.",
+    "plain_language": "The mineral content of your body, most of it in bone.",
+    "why_it_matters": "Reported alongside bone mass because the two overlap.",
+    "measurement_limitations": "Estimated by the device's model rather than measured directly.",
+    "what_could_add_context": ["bone_mass", "t_score"]
+  },
+  "body_cell_mass": {
+    "definition": "The estimated mass of metabolically active cells in the body.",
+    "plain_language": "The part of your body made of living, working cells.",
+    "why_it_matters": "Body cell mass sits within lean tissue and relates closely to intracellular water and protein.",
+    "measurement_limitations": "A modelled figure derived from other estimates in the same scan.",
+    "what_could_add_context": ["intracellular_water", "protein_mass", "lean_mass"]
+  },
+
+  "heart_rate": {
+    "definition": "Heartbeats per minute, recorded at the time of the scan.",
+    "plain_language": "How fast your heart was beating during the measurement.",
+    "why_it_matters": "A single reading captures one moment. Resting heart rate measured consistently over time describes something a one-off reading cannot.",
+    "measurement_limitations": "Affected by recent activity, caffeine, stress, temperature and time of day. A reading taken just after arriving for a scan may not be a resting reading.",
+    "what_could_add_context": ["bmr"],
+    "safety_note": "Persistent concerns about heart rate are worth discussing with a healthcare professional."
+  },
+  "bmr": {
+    "definition": "Basal Metabolic Rate: the estimated energy the body uses at complete rest.",
+    "plain_language": "Roughly how many calories your body uses just to keep running.",
+    "why_it_matters": "BMR estimates are commonly calculated from lean or fat-free tissue, which is why the two figures tend to move together.",
+    "measurement_limitations": "This is a calculation from body composition, not a measurement of your metabolism. Measured metabolic rate requires different equipment.",
+    "what_could_add_context": ["lean_mass", "fat_free_mass", "recommended_calorie_intake"]
+  },
+  "recommended_calorie_intake": {
+    "definition": "A daily energy figure the provider calculates from the scan and its own assumptions about activity.",
+    "plain_language": "The device's suggested daily calorie figure.",
+    "why_it_matters": "It is derived from the provider's model, including an activity assumption that may not match your own.",
+    "measurement_limitations": "A calculated target rather than a measurement, and sensitive to assumptions the report may not state.",
+    "what_could_add_context": ["bmr", "weight_control"],
+    "safety_note": "A provider-calculated target. Nutrition goals are worth setting with a qualified professional."
+  },
+  "ideal_weight": {
+    "definition": "A target weight the provider calculates from its own reference model.",
+    "plain_language": "The weight the device's model points to as a target.",
+    "why_it_matters": "It reflects the provider's reference assumptions rather than an individual assessment.",
+    "measurement_limitations": "Different models produce different targets for the same person, and the model behind this one is not usually stated.",
+    "what_could_add_context": ["weight", "weight_control", "fat_control"],
+    "safety_note": "A provider-calculated target rather than personal advice."
+  },
+  "weight_control": {
+    "definition": "The difference the provider calculates between current weight and its target weight.",
+    "plain_language": "How far the device's model places you from its target weight. A negative number means the target is lower.",
+    "why_it_matters": "It restates the ideal weight figure as a difference, and carries the same model assumptions.",
+    "measurement_limitations": "Depends entirely on the provider's reference model.",
+    "what_could_add_context": ["ideal_weight", "fat_control", "muscle_control"],
+    "safety_note": "A provider-calculated target rather than personal advice."
+  },
+  "fat_free_mass": {
+    "definition": "Total body mass minus fat mass.",
+    "plain_language": "Everything that is not fat, including bone.",
+    "why_it_matters": "Fat-free mass and lean mass are closely related and some devices report the same tissue under both names, which can lead to the same number carrying two different classifications in one report.",
+    "measurement_limitations": "Whether bone mineral is included differs between conventions, and the report may not state which it used.",
+    "what_could_add_context": ["lean_mass", "bone_mass", "bmr"]
+  }
+}

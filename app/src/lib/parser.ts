@@ -12,6 +12,13 @@ export interface ParsedMetric {
   confidence: 'high' | 'low';
 }
 
+/** The report's own prose, kept so its claims can be checked against its own tables. */
+export interface ReportNarrative {
+  summary: string;
+  critical_findings: string;
+  recommendations: string[];
+}
+
 export interface ParsedReport {
   provider: string;
   subject_name: string | null;
@@ -21,6 +28,7 @@ export interface ParsedReport {
   height_cm_derived: number | null;
   metrics: ParsedMetric[];
   unmapped: { label: string; page: number }[];
+  narrative: ReportNarrative;
 }
 
 const NUMERIC = /^-?\d+(\.\d+)?$/;
@@ -105,6 +113,49 @@ function parseRow(line: string, page: number, fallback: Category | null): Parsed
   return metric;
 }
 
+const NARRATIVE_STOP = [
+  'Disclaimer',
+  'professional medical advice',
+  'Immediate attention',
+  'Keep monitoring',
+  'Make your next report better',
+];
+
+/** Prose lines following a heading, stopping at the page's boilerplate. */
+function proseAfter(lines: string[], heading: string): string {
+  const start = lines.findIndex((l) => l === heading);
+  if (start === -1) return '';
+
+  const body: string[] = [];
+  for (const line of lines.slice(start + 1)) {
+    if (NARRATIVE_STOP.some((s) => line.startsWith(s))) break;
+    if (isPageFurniture(line)) continue;
+    body.push(line);
+  }
+  return body.join(' ').replace(/\s+/g, ' ').trim();
+}
+
+function parseNarrative(pages: string[][]): ReportNarrative {
+  let summary = '';
+  let critical = '';
+  let recommendations: string[] = [];
+
+  for (const lines of pages) {
+    summary ||= proseAfter(lines, 'Your Health Summary');
+    critical ||= proseAfter(lines, 'Critical Findings');
+
+    const recs = proseAfter(lines, 'Lifestyle Recommendations');
+    if (recs && recommendations.length === 0) {
+      recommendations = recs
+        .split(/(?=\b\d+\.\s)/)
+        .map((r) => r.replace(/^\d+\.\s*/, '').trim())
+        .filter((r) => r.length > 10);
+    }
+  }
+
+  return { summary, critical_findings: critical, recommendations };
+}
+
 export function parseTokens(pages: string[][]): ParsedReport {
   const header = parseHeader(pages[0] ?? []);
   const metrics: ParsedMetric[] = [];
@@ -147,7 +198,14 @@ export function parseTokens(pages: string[][]): ParsedReport {
       ? Math.round(Math.sqrt(weight / bmi) * 1000) / 10
       : null;
 
-  return { provider: 'FITTR', ...header, height_cm_derived, metrics, unmapped };
+  return {
+    provider: 'FITTR',
+    ...header,
+    height_cm_derived,
+    metrics,
+    unmapped,
+    narrative: parseNarrative(pages),
+  };
 }
 
 /**

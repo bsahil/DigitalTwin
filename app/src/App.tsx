@@ -262,6 +262,8 @@ export default function App() {
             profile={activeProfile}
             metrics={current.metrics}
             measurementDate={current.report.measurement_date}
+            narrative={current.report.narrative ?? null}
+            provider={current.report.provider}
           />
         )}
 

@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { Category, Provenance } from './catalog';
-import type { ParsedReport } from './parser';
+import type { ParsedReport, ReportNarrative } from './parser';
 
 export interface Profile {
   id: string;
@@ -23,6 +23,8 @@ export interface Report {
   file_name: string;
   extraction_status: 'parsed' | 'verified';
   metric_count: number;
+  /** The report's own prose, kept so Data Check can compare it against the tables. */
+  narrative: ReportNarrative;
 }
 
 export interface Metric {
@@ -130,6 +132,7 @@ export async function commitReport(input: CommitInput): Promise<Report> {
     file_name: fileName,
     extraction_status: 'verified',
     metric_count: metrics.length,
+    narrative: parsed.narrative,
   };
 
   await db.transaction('rw', db.reports, db.metrics, db.profiles, async () => {
