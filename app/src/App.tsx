@@ -166,9 +166,9 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-full">
-      <header className="sticky top-0 z-10 border-b border-atlas-line bg-atlas-bg/80 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center gap-6 px-6 py-4">
+    <div className="flex h-full flex-col">
+      <header className="shrink-0 border-b border-atlas-line bg-atlas-bg/80 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-6 sm:py-4">
           <button
             onClick={() => setView(reports.length ? 'reports' : 'upload')}
             className="text-sm uppercase tracking-[0.2em]"
@@ -176,7 +176,7 @@ export default function App() {
             Body Atlas
           </button>
 
-          <nav className="ml-6 flex gap-5 text-sm">
+          <nav className="flex gap-5 text-sm sm:ml-6">
             {(['body', 'reports'] as const).map((v) => (
               <button
                 key={v}
@@ -212,7 +212,7 @@ export default function App() {
         </div>
       </header>
 
-      <main>
+      <main className="min-h-0 flex-1 overflow-y-auto">
         {view === 'upload' && <UploadScreen onFile={handleFile} error={error} />}
 
         {view === 'processing' && <ProcessingScreen step={step} />}

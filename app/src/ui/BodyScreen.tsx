@@ -115,8 +115,8 @@ export function BodyScreen({
         : null;
 
   return (
-    <div className="flex h-[calc(100vh-65px)] flex-col">
-      <div className="flex min-h-0 flex-1">
+    <div className="flex h-full flex-col">
+      <div className="relative flex min-h-0 flex-1">
         {/* min-w-0: the canvas carries an inline pixel width, which would otherwise set
             min-width:auto on this flex item and push the drawer off screen. */}
         <div className="relative min-w-0 flex-1 overflow-hidden">
@@ -128,7 +128,7 @@ export function BodyScreen({
             preset={preset}
           />
 
-          <div className="pointer-events-none absolute left-6 top-6">
+          <div className="pointer-events-none absolute left-4 top-4 sm:left-6 sm:top-6">
             <div className="text-sm text-atlas-muted">{profile.subject_name}</div>
             <div className="text-xs text-atlas-muted/60">
               {measurementDate
@@ -148,13 +148,13 @@ export function BodyScreen({
                 setShowDataCheck(true);
                 setOpenMetric(null);
               }}
-              className="absolute right-6 top-6 rounded-lg border border-atlas-line bg-atlas-panel/80 px-3 py-2 text-xs text-atlas-muted backdrop-blur transition hover:text-atlas-text"
+              className="absolute right-4 top-4 rounded-lg border border-atlas-line bg-atlas-panel/80 px-3 py-2 text-xs text-atlas-muted backdrop-blur transition hover:text-atlas-text sm:right-6 sm:top-6"
             >
               Data check · {flags.length}
             </button>
           )}
 
-          <div className="absolute left-1/2 top-6 flex -translate-x-1/2 gap-1 rounded-full border border-atlas-line bg-atlas-panel/80 p-1 backdrop-blur">
+          <div className="absolute left-1/2 top-16 flex -translate-x-1/2 gap-1 rounded-full border border-atlas-line bg-atlas-panel/80 p-1 backdrop-blur sm:top-6">
             {LAYERS.map((l) => (
               <button
                 key={l.id}
@@ -171,7 +171,7 @@ export function BodyScreen({
             ))}
           </div>
 
-          <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 gap-1 rounded-full border border-atlas-line bg-atlas-panel/80 p-1 backdrop-blur">
+          <div className="absolute bottom-16 left-1/2 flex -translate-x-1/2 gap-1 rounded-full border border-atlas-line bg-atlas-panel/80 p-1 backdrop-blur sm:bottom-6">
             {PRESETS.map((p) => (
               <button
                 key={p}
@@ -187,21 +187,21 @@ export function BodyScreen({
           </div>
 
           {/* Never let the picture imply more than the data supports. */}
-          <div className="pointer-events-none absolute bottom-6 left-6 max-w-xs text-xs leading-relaxed text-atlas-muted/70">
+          <div className="pointer-events-none absolute bottom-4 left-4 max-w-[58%] text-xs leading-relaxed text-atlas-muted/70 sm:bottom-6 sm:left-6 sm:max-w-xs">
             Generated from your measurements. Not a scan of your anatomy.
-            <div className="mt-1 text-atlas-muted/50">{LAYER_NOTE[layer]}</div>
+            <div className="mt-1 hidden text-atlas-muted/50 sm:block">{LAYER_NOTE[layer]}</div>
           </div>
 
           <button
             onClick={() => setShowProvenance((v) => !v)}
             data-testid="provenance-toggle"
-            className="absolute bottom-6 right-6 rounded-lg border border-atlas-line bg-atlas-panel/80 px-3 py-1.5 text-xs text-atlas-muted backdrop-blur hover:text-atlas-text"
+            className="absolute bottom-4 right-4 rounded-lg border border-atlas-line bg-atlas-panel/80 px-3 py-1.5 text-xs text-atlas-muted backdrop-blur hover:text-atlas-text sm:bottom-6 sm:right-6"
           >
             What is real here?
           </button>
 
           {showProvenance && (
-            <Panel className="absolute bottom-20 right-6 w-80 space-y-3 bg-atlas-panel/95 p-5 text-xs backdrop-blur">
+            <Panel className="absolute bottom-16 right-4 w-80 max-w-[calc(100vw-2rem)] space-y-3 bg-atlas-panel/95 p-5 text-xs backdrop-blur sm:bottom-20 sm:right-6">
               <div className="flex gap-3">
                 <ProvenanceTag level="measured" />
                 <span className="text-atlas-muted">
@@ -231,7 +231,7 @@ export function BodyScreen({
         </div>
 
         {drawer && (
-          <aside className="w-[26rem] shrink-0">
+          <aside className="absolute inset-0 z-20 lg:static lg:z-auto lg:w-[26rem] lg:shrink-0">
             {drawer === 'metric' && byName.get(openMetric!) && (
               <MetricPanel
                 metric={byName.get(openMetric!)!}

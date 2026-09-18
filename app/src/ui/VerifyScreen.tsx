@@ -98,7 +98,7 @@ export function VerifyScreen({
         </Button>
       </div>
 
-      <Panel className="mt-4 overflow-hidden">
+      <Panel className="mt-4 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-atlas-line text-left text-xs uppercase tracking-wider text-atlas-muted">
