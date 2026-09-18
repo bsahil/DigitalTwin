@@ -265,7 +265,7 @@ export function BodyScreen({
                 key={p}
                 data-testid={`view-${p}`}
                 onClick={() => setPreset(p)}
-                className={`rounded-full px-4 py-1.5 text-xs capitalize transition ${
+                className={`rounded-full px-3 py-1.5 text-xs capitalize transition sm:px-4 ${
                   preset === p ? 'text-atlas-text' : 'text-atlas-muted hover:text-atlas-text'
                 }`}
               >
@@ -281,11 +281,11 @@ export function BodyScreen({
                 data-testid={`scale-${m}`}
                 aria-pressed={scaleMode === m}
                 onClick={() => setScaleMode(m)}
-                className={`rounded-full px-3 py-1.5 text-xs transition ${
+                className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs transition ${
                   scaleMode === m ? 'text-atlas-text' : 'text-atlas-muted hover:text-atlas-text'
                 }`}
               >
-                {m === 'fit' ? 'Fit' : 'True scale'}
+                {m === 'fit' ? 'Fit' : <><span className="sm:hidden">1:1</span><span className="hidden sm:inline">True scale</span></>}
               </button>
             ))}
           </div>
