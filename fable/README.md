@@ -55,15 +55,34 @@ nearly free — interpolating the body is interpolating the numbers.
 
 See `reference/body-model-spec.md` for the derivation.
 
+## Validated against the real files
+
+Both PDFs were parsed before these prompts were finalised. Findings are folded into the
+specs:
+
+- **Text layer confirmed.** A prototype parser extracted **55/55** metrics from Report A
+  and **54/55** from Report B. No OCR needed — the largest schedule risk is retired.
+- **Height is derivable** as `sqrt(weight/bmi)` → 165.2 cm and 178.2 cm. The report never
+  prints it, so it is pre-filled as `derived` rather than blocking the build.
+- **Report B is missing `muscle_control` entirely.** Dynamic counts are mandatory.
+- **The Data Check fires on real data.** `lean_mass` and `fat_free_mass` are the *same
+  number* with contradictory labels in both reports (34.9 Healthy/Low; 59.4 Athletic/Low),
+  and `lean_mass_percentage` is arithmetically wrong in both by ~7% while every other
+  percentage is exact to 0.2%.
+- **The body model reconciles.** Measured segments account for 93% and 92% of total body
+  volume; trunk circumference computes to 84.4 cm and 89.6 cm. Both plausible.
+- **Segmental muscle ≠ `skeletal_muscle_mass`.** Using the latter makes limbs ~40% too
+  thin. The spec now says which to use and why.
+
 ## Known risks
 
-- **Extraction is the schedule risk.** If the PDFs turn out to be image-only with no text
-  layer, Stage 1 changes shape and costs more. Stage 1 is instructed to stop and report
-  this rather than silently building an OCR pipeline.
 - **The generated metric copy needs a human read.** The lint catches forbidden phrasing,
   not subtle inaccuracy. Read `metric-knowledge.json` before showing the product to anyone.
-- **Two reports from two people cannot demonstrate longitudinal change.** Profiles keep the
-  record honest, but a genuine over-time demo needs a second scan of the same person.
+- **There is no longitudinal pair.** Both reports are different people dated the same day.
+  Profiles keep the record honest, but demonstrating change over time needs a second scan
+  of the same person.
+- **Limb geometry needs tuning.** Volumes are right; distribution along the limb is the
+  part that needs the taper profile and a look at the rendered result.
 - **$60 is tight.** Treat it as funding Stages 1–2 with confidence and 3–4 as conditional.
 
 ## Files

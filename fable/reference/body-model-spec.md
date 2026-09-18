@@ -32,12 +32,30 @@ mass between their two sub-segments by their length share, and say so in the UI 
 
 ### 1. Scale
 
+Height is **not printed in the report**. Derive it:
+
 ```
-h = height in metres (from report if present, else entered at verification)
+h = sqrt(weight_kg / bmi)
 ```
 
-If height is missing, the body must not render until the user supplies it. Do not
-default silently — height drives every length.
+Verified against both reference files: 165.2 cm and 178.2 cm. Tag it `derived`, pre-fill
+it at verification for the user to confirm or correct, and never present it as measured.
+
+### 1a. Which muscle figure to use — important
+
+Use the **segmental** values (`trunk_muscle_mass`, `left_leg_muscle_mass`, …), never
+`skeletal_muscle_mass`. They are different quantities:
+
+| | Report A | Report B |
+|---|---|---|
+| sum of 5 segmental muscle values | 29.5 kg | 51.3 kg |
+| `skeletal_muscle_mass` | 18.2 kg | 33.5 kg |
+| `lean_mass` | 34.9 kg | 59.4 kg |
+
+The segmental figures are lean soft tissue per segment and reconcile with `lean_mass`
+(the difference — 5.4 kg and 8.1 kg — is head, neck, hands and feet, the segments the
+scan does not report). `skeletal_muscle_mass` is a narrower quantity and will produce
+limbs roughly 40% too thin if used here.
 
 ### 2. Segment lengths (ILLUSTRATIVE — tag as such)
 
@@ -55,6 +73,22 @@ head         0.130 * h
 
 These are generic human proportions, not measurements of this person. Every surface that
 exposes them must carry the `illustrative` marker.
+
+**Volume distribution within a limb is not uniform.** A limb's measured mass covers the
+whole limb; distributing it evenly over the full length produces a visibly wrong,
+tubular result. Weight it toward the proximal segment and taper along each segment:
+
+```
+thigh 65% / calf 35%  of leg volume
+upper arm 60% / forearm 40%  of arm volume
+```
+
+Validation against the reference data: treating each leg as one uniform cylinder gives a
+35 cm circumference for Report A, which is far too thin. With the taper applied the thigh
+lands in a plausible range. The trunk needs no such correction — as a single compact
+segment it computes to 84.4 cm (A) and 89.6 cm (B), both realistic.
+
+The split is `illustrative`; the total limb volume it distributes is `measured`.
 
 ### 3. Muscle core radius (MEASURED → derived)
 
@@ -81,13 +115,32 @@ reference ranges, and this formulation never needs one.
 
 ### 5. Trunk
 
-Same volume logic, but distribute the total trunk volume along a chest→waist→hip radius
-profile rather than a constant radius. Add a fixed incompressible core representing
-skeleton and organs (use `bone_mass` when present, otherwise a constant, tagged
-`illustrative`) so the trunk never collapses to zero at low fat/muscle values.
+Same volume logic, distributed along a chest→waist→hip radius profile rather than a
+constant radius. Normalise the profile so the **integrated volume equals** the computed
+total. The shape is illustrative; the volume is measured.
 
-Normalise the profile so the **integrated volume equals** `V_muscle + V_fat + V_core`.
-The shape is illustrative; the volume is measured.
+Trunk fat is **`trunk_fat_mass` + `visceral_fat_mass`**. Verified in both files:
+
+```
+subcutaneous_fat_mass + visceral_fat_mass = fat_mass     (exact, 0.0% error, both reports)
+sum of the 5 regional fat values          = subcutaneous_fat_mass
+```
+
+So the regional figures are subcutaneous only, and visceral fat must be added to the
+trunk separately or it vanishes from the model.
+
+This gives the trunk a genuinely data-driven two-compartment structure: render
+**visceral fat as an inner core and subcutaneous as the outer shell**. Both are measured,
+and it makes the visceral/subcutaneous distinction visible rather than merely stated.
+
+### 5a. Coverage check
+
+The five measured segments account for **93% (A) and 92% (B)** of total body volume
+(total from `weight / density`, density via Siri from `fat_percentage`). The 7–8%
+remainder is head, neck, hands and feet — exactly the segments rendered as unmeasured.
+
+Use this as a unit test: if measured segments come to less than ~85% or more than ~97%
+of total body volume, the mesh inputs are wrong.
 
 ### 6. Asymmetry
 
