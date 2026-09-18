@@ -214,7 +214,8 @@ export function buildBodyModel(metrics: MetricValues, heightCm: number): BodyMod
     segments.push({
       id,
       label,
-      measured: true,
+      // A region with no mass at all was not measured; the questionnaire path has none.
+      measured: lean + fat > 0,
       origin,
       length,
       // Nested shells: visceral core, then muscle, then fat to the silhouette.

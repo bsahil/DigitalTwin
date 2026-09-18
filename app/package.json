@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "build:artifact": "vite build && node scripts/make-artifact.cjs"
+    "build:artifact": "vite build && node scripts/make-artifact.cjs",
+    "build:body": "tsx scripts/build-body-asset.ts"
   },
   "dependencies": {
     "dexie": "^4.4.6",
@@ -30,6 +31,7 @@
     "oxlint": "^1.81.0",
     "playwright": "^1.63.0",
     "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.13",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
     "vitest": "^5.0.1"

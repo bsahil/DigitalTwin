@@ -6,7 +6,12 @@ export type Category =
   | 'composition_elements'
   | 'vitals_targets';
 
-export type Provenance = 'measured' | 'derived' | 'interpreted' | 'illustrative';
+/**
+ * measured/derived/interpreted describe a provider's numbers; illustrative marks what the
+ * app draws without data; self_reported and estimated exist for the questionnaire path:
+ * a value the person typed, or one computed from what they typed by a named formula.
+ */
+export type Provenance = 'measured' | 'derived' | 'interpreted' | 'illustrative' | 'self_reported' | 'estimated';
 
 export interface CatalogEntry {
   canonical_name: string;
