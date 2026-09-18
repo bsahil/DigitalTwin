@@ -22,9 +22,10 @@ const URL_ = process.argv[2] || 'http://localhost:4173/preview-artifact.html';
 
   await page.click('text=Confirm & Build My Body');
   await page.waitForSelector('[data-testid=layer-normal]', { timeout: 25000 });
-  await page.waitForTimeout(2500);
+  await page.waitForSelector('[data-testid=body-loading]', { state: 'detached', timeout: 30000 });
+  await page.waitForTimeout(1500);
   const gl = await page.evaluate(() => { const c = document.querySelector('canvas'); return c && c.width > 0; });
-  console.log('3D canvas rendering:', gl);
+  console.log('3D canvas rendering:', gl, '| body asset loaded (loading overlay gone)');
   await page.screenshot({ path: '/tmp/shots/p-desktop.png' });
 
   await page.click('[data-testid=data-check-button]');
@@ -44,7 +45,8 @@ const URL_ = process.argv[2] || 'http://localhost:4173/preview-artifact.html';
 
   await phone.click('text=Confirm & Build My Body');
   await phone.waitForSelector('[data-testid=layer-normal]', { timeout: 25000 });
-  await phone.waitForTimeout(2500);
+  await phone.waitForSelector('[data-testid=body-loading]', { state: 'detached', timeout: 30000 });
+  await phone.waitForTimeout(1500);
   await phone.screenshot({ path: '/tmp/shots/p-phone-body.png' });
   const hscroll2 = await phone.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   console.log('phone body horizontal scroll:', hscroll2);
