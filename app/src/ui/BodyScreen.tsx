@@ -309,6 +309,16 @@ export function BodyScreen({
                     <p className="mt-2 text-xs text-atlas-muted">
                       Select a measurement to see what it means.
                     </p>
+                    <p
+                      data-testid="region-volume"
+                      className="mt-3 flex items-baseline gap-2 text-sm"
+                    >
+                      <span className="text-atlas-muted">Drawn at</span>
+                      <span className="font-mono">{segment.volumeL.toFixed(1)} L</span>
+                      <span className="text-xs text-atlas-muted">
+                        — the volume its measured fat and muscle imply
+                      </span>
+                    </p>
                     <div className="mt-5 space-y-2">
                       {[
                         ['Muscle', regionMetrics.muscle],

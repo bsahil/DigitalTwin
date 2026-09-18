@@ -1,7 +1,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { describe, test, expect } from 'vitest';
 import { parsePdf } from '../src/lib/parser';
-import { buildBodyModel, type MetricValues, type Segment } from '../src/lib/bodyModel';
+import { buildBodyModel, pchip, DRAWN, type MetricValues, type Segment } from '../src/lib/bodyModel';
 
 const fixture = (n: string) => new URL(`./fixtures/${n}`, import.meta.url);
 const has = (n: string) => existsSync(fixture(n));
@@ -127,6 +127,34 @@ describe('volume derivation', () => {
     );
   });
 
+  test('every drawn array is the full sample density, so tests integrate what is rendered', () => {
+    const { segments } = buildBodyModel(metrics, 175);
+    for (const s of segments) {
+      expect(s.outer).toHaveLength(DRAWN);
+      expect(s.muscle).toHaveLength(DRAWN);
+      if (s.visceral) expect(s.visceral).toHaveLength(DRAWN);
+    }
+  });
+
+  test('fat and muscle shares partition each measured segment', () => {
+    const { segments } = buildBodyModel(metrics, 175);
+    for (const s of segments.filter((x) => x.measured)) {
+      expect(s.fatShare + s.muscleShare).toBeCloseTo(1, 10);
+      expect(s.muscleShare).toBeCloseTo(s.mass.lean / 1.06 / s.volumeL, 10);
+    }
+  });
+
+  test('more mass in a segment means a thicker segment everywhere along it', () => {
+    const thin = seg(buildBodyModel(metrics, 175).segments, 'left_leg');
+    const thick = seg(
+      buildBodyModel({ ...metrics, left_leg_muscle_mass: 12, left_leg_fat_mass: 3 }, 175).segments,
+      'left_leg',
+    );
+    for (let i = 0; i < thin.outer.length; i++) {
+      expect(thick.outer[i]).toBeGreaterThan(thin.outer[i]);
+    }
+  });
+
   test('missing or zero mass degrades to zero rather than NaN', () => {
     const { segments } = buildBodyModel({ weight: 60, fat_percentage: 25 }, 170);
     for (const s of segments) {
@@ -167,6 +195,17 @@ describeIf('report-a.pdf')('real report A', () => {
     expect(model.asymmetry.legs).toBeGreaterThan(0);
   });
 
+  test('the fat compartments the trunk draws reconcile with the report’s own total', async () => {
+    const { model, metrics } = await modelFor('report-a.pdf');
+    const regional = model.segments
+      .filter((s) => s.measured)
+      .reduce((sum, s) => sum + s.mass.fat, 0);
+    const visceral = seg(model.segments, 'trunk').mass.visceral!;
+    // Regional fat is subcutaneous only; adding the visceral core recovers total fat mass.
+    expect(regional).toBeCloseTo(metrics.subcutaneous_fat_mass, 1);
+    expect(regional + visceral).toBeCloseTo(metrics.fat_mass, 1);
+  });
+
   test('unmeasured regions carry no mass', async () => {
     const { model } = await modelFor('report-a.pdf');
     for (const s of model.segments.filter((x) => !x.measured)) {
@@ -196,5 +235,35 @@ describeIf('report-b.pdf')('real report B', () => {
     const legA = seg(a.model.segments, 'left_leg');
     const legB = seg(b.model.segments, 'left_leg');
     expect(legB.muscleShare).toBeGreaterThan(legA.muscleShare);
+  });
+});
+
+describe('pchip', () => {
+  test('never overshoots the control points it passes between', () => {
+    const knots = [1.04, 1.1, 0.98, 0.84, 0.78, 0.95, 0.84, 0.56, 0.45];
+    const out = pchip(knots, 48);
+    for (let k = 0; k < out.length; k++) {
+      const x = (k / 47) * (knots.length - 1);
+      const i = Math.min(Math.floor(x), knots.length - 2);
+      const lo = Math.min(knots[i], knots[i + 1]);
+      const hi = Math.max(knots[i], knots[i + 1]);
+      expect(out[k]).toBeGreaterThanOrEqual(lo - 1e-12);
+      expect(out[k]).toBeLessThanOrEqual(hi + 1e-12);
+    }
+  });
+
+  test('passes through every knot and is monotone between them', () => {
+    const knots = [0.2, 0.5, 0.9, 0.9, 0.4];
+    const out = pchip(knots, 41);
+    expect(out[0]).toBeCloseTo(0.2, 12);
+    expect(out[40]).toBeCloseTo(0.4, 12);
+    // rising run: 0.2 → 0.9 across the first two intervals
+    for (let k = 1; k <= 20; k++) expect(out[k]).toBeGreaterThanOrEqual(out[k - 1] - 1e-12);
+    // flat run holds flat rather than bulging
+    for (let k = 20; k <= 30; k++) expect(out[k]).toBeCloseTo(0.9, 9);
+  });
+
+  test('a constant profile stays constant', () => {
+    expect(pchip([0.03, 0.03, 0.03], 10).every((v) => Math.abs(v - 0.03) < 1e-12)).toBe(true);
   });
 });

@@ -33,31 +33,10 @@ export const COLORS = {
 
 export const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 
-/** Catmull-Rom through the control radii, so the silhouette reads as a body not a stack. */
-export function resample(values: number[], count = 48): number[] {
-  const n = values.length - 1;
-  const at = (i: number) => values[Math.max(0, Math.min(n, i))];
-
-  return Array.from({ length: count }, (_, k) => {
-    const t = (k / (count - 1)) * n;
-    const i = Math.floor(t);
-    const f = t - i;
-    const [p0, p1, p2, p3] = [at(i - 1), at(i), at(i + 1), at(i + 2)];
-    return Math.max(
-      0.0005,
-      0.5 *
-        (2 * p1 +
-          (-p0 + p2) * f +
-          (2 * p0 - 5 * p1 + 4 * p2 - p3) * f * f +
-          (-p0 + 3 * p1 - 3 * p2 + p3) * f * f * f),
-    );
-  });
-}
-
+/** The model's arrays are already the drawn profile; resampling again here would make the drawn volume diverge from the tested one. */
 function latheFor(radii: number[], length: number): THREE.LatheGeometry {
-  const smooth = resample(radii);
-  const points = smooth.map(
-    (r, i) => new THREE.Vector2(r, -(i / (smooth.length - 1)) * length),
+  const points = radii.map(
+    (r, i) => new THREE.Vector2(Math.max(r, 0.0005), -(i / (radii.length - 1)) * length),
   );
   return new THREE.LatheGeometry(points, 48);
 }
@@ -67,14 +46,13 @@ function latheFor(radii: number[], length: number): THREE.LatheGeometry {
  * silhouette, filled. Drawn flat so nested compartments read as bands.
  */
 function capFor(radii: number[], length: number): THREE.ShapeGeometry {
-  const smooth = resample(radii);
-  const n = smooth.length;
+  const n = radii.length;
   const y = (i: number) => -(i / (n - 1)) * length;
 
   const shape = new THREE.Shape();
-  shape.moveTo(smooth[0], 0);
-  for (let i = 1; i < n; i++) shape.lineTo(smooth[i], y(i));
-  for (let i = n - 1; i >= 0; i--) shape.lineTo(-smooth[i], y(i));
+  shape.moveTo(radii[0], 0);
+  for (let i = 1; i < n; i++) shape.lineTo(radii[i], y(i));
+  for (let i = n - 1; i >= 0; i--) shape.lineTo(-radii[i], y(i));
   shape.closePath();
 
   return new THREE.ShapeGeometry(shape);

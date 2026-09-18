@@ -21,14 +21,6 @@ export type RegionId =
   | 'hands'
   | 'feet';
 
-export const MEASURED_REGIONS: RegionId[] = [
-  'trunk',
-  'left_arm',
-  'right_arm',
-  'left_leg',
-  'right_leg',
-];
-
 const MUSCLE_DENSITY = 1.06; // kg/L
 const FAT_DENSITY = 0.9; // kg/L
 
@@ -86,7 +78,10 @@ export interface Segment {
   /** Rotation about z, in radians, applied at the segment's origin. ILLUSTRATIVE. */
   rotationZ?: number;
   length: number;
-  /** Radii sampled top to bottom, in metres. */
+  /**
+   * Radii sampled top to bottom, in metres — the array that is actually drawn, so a
+   * volume integrated over it is the volume on screen.
+   */
   outer: number[];
   muscle: number[];
   /** Trunk only: visceral fat as an inner core. */
@@ -131,6 +126,52 @@ function radiiForVolume(profile: number[], length: number, volumeL: number): num
   return profile.map((p) => k * p);
 }
 
+/** Samples along every drawn profile. */
+export const DRAWN = 48;
+
+/**
+ * Monotone cubic interpolation (Fritsch–Carlson). Unlike Catmull-Rom it never
+ * overshoots the control points, so scaling one resampled shape by three different
+ * factors keeps visceral < muscle < outer at every sample, and no clamp is needed.
+ */
+export function pchip(values: number[], count = DRAWN): number[] {
+  const n = values.length;
+  if (n === 0) return Array.from({ length: count }, () => 0);
+  if (n === 1) return Array.from({ length: count }, () => values[0]);
+
+  const delta = values.slice(0, -1).map((v, i) => values[i + 1] - v);
+  const d = new Array<number>(n).fill(0);
+
+  const endpoint = (a: number, b: number) => {
+    let e = (3 * a - b) / 2;
+    if (Math.sign(e) !== Math.sign(a)) e = 0;
+    else if (Math.sign(a) !== Math.sign(b) && Math.abs(e) > 3 * Math.abs(a)) e = 3 * a;
+    return e;
+  };
+  d[0] = endpoint(delta[0], delta[1] ?? delta[0]);
+  d[n - 1] = endpoint(delta[n - 2], delta[n - 3] ?? delta[n - 2]);
+
+  for (let i = 1; i < n - 1; i++) {
+    const a = delta[i - 1];
+    const b = delta[i];
+    d[i] = a * b <= 0 ? 0 : (2 * a * b) / (a + b);
+  }
+
+  return Array.from({ length: count }, (_, k) => {
+    const x = (k / (count - 1)) * (n - 1);
+    const i = Math.min(Math.floor(x), n - 2);
+    const t = x - i;
+    const t2 = t * t;
+    const t3 = t2 * t;
+    return (
+      (2 * t3 - 3 * t2 + 1) * values[i] +
+      (t3 - 2 * t2 + t) * d[i] +
+      (-2 * t3 + 3 * t2) * values[i + 1] +
+      (t3 - t2) * d[i + 1]
+    );
+  });
+}
+
 const val = (m: MetricValues, key: string): number =>
   typeof m[key] === 'number' && Number.isFinite(m[key]) ? m[key] : 0;
 
@@ -167,6 +208,9 @@ export function buildBodyModel(metrics: MetricValues, heightCm: number): BodyMod
     const vFat = fat / FAT_DENSITY;
     const total = vVisceral + vLean + vFat;
 
+    // Volume is fitted to the resampled profile, so the drawn array holds it exactly.
+    const drawn = pchip(shape);
+
     segments.push({
       id,
       label,
@@ -174,9 +218,9 @@ export function buildBodyModel(metrics: MetricValues, heightCm: number): BodyMod
       origin,
       length,
       // Nested shells: visceral core, then muscle, then fat to the silhouette.
-      visceral: visceralMass ? radiiForVolume(shape, length, vVisceral) : undefined,
-      muscle: radiiForVolume(shape, length, vVisceral + vLean),
-      outer: radiiForVolume(shape, length, total),
+      visceral: visceralMass ? radiiForVolume(drawn, length, vVisceral) : undefined,
+      muscle: radiiForVolume(drawn, length, vVisceral + vLean),
+      outer: radiiForVolume(drawn, length, total),
       mass: { lean, fat, visceral: visceralMass },
       volumeL: total,
       fatShare: total > 0 ? (vFat + vVisceral) / total : 0,
@@ -282,8 +326,8 @@ export function buildBodyModel(metrics: MetricValues, heightCm: number): BodyMod
       measured: false,
       origin: [0, neckTopY, 0],
       length: L.neck * h,
-      outer: [neckR, neckR, neckR],
-      muscle: [neckR, neckR, neckR],
+      outer: pchip([neckR, neckR, neckR]),
+      muscle: pchip([neckR, neckR, neckR]),
       mass: { lean: 0, fat: 0 },
       volumeL: 0,
       fatShare: 0,
@@ -297,8 +341,8 @@ export function buildBodyModel(metrics: MetricValues, heightCm: number): BodyMod
       length: L.head * h,
       scaleX: 0.9,
       scaleZ: 1.12,
-      outer: [headR * 0.55, headR, headR * 1.02, headR * 0.92, headR * 0.6],
-      muscle: [headR * 0.55, headR, headR * 1.02, headR * 0.92, headR * 0.6],
+      outer: pchip([headR * 0.55, headR, headR * 1.02, headR * 0.92, headR * 0.6]),
+      muscle: pchip([headR * 0.55, headR, headR * 1.02, headR * 0.92, headR * 0.6]),
       mass: { lean: 0, fat: 0 },
       volumeL: 0,
       fatShare: 0,
@@ -321,8 +365,8 @@ export function buildBodyModel(metrics: MetricValues, heightCm: number): BodyMod
         scaleX: 1.25,
         scaleZ: 0.55,
         length: 0.085 * h,
-        outer: [handR * 0.8, handR, handR * 0.95, handR * 0.6],
-        muscle: [handR * 0.8, handR, handR * 0.95, handR * 0.6],
+        outer: pchip([handR * 0.8, handR, handR * 0.95, handR * 0.6]),
+        muscle: pchip([handR * 0.8, handR, handR * 0.95, handR * 0.6]),
         mass: { lean: 0, fat: 0 },
         volumeL: 0,
         fatShare: 0,
@@ -338,8 +382,8 @@ export function buildBodyModel(metrics: MetricValues, heightCm: number): BodyMod
         length: ankleY + ankleR,
         scaleX: 0.86,
         scaleZ: 2.2,
-        outer: [footR * 0.85, footR, footR * 0.95, footR * 0.7],
-        muscle: [footR * 0.85, footR, footR * 0.95, footR * 0.7],
+        outer: pchip([footR * 0.85, footR, footR * 0.95, footR * 0.7]),
+        muscle: pchip([footR * 0.85, footR, footR * 0.95, footR * 0.7]),
         mass: { lean: 0, fat: 0 },
         volumeL: 0,
         fatShare: 0,
@@ -375,5 +419,3 @@ export function buildBodyModel(metrics: MetricValues, heightCm: number): BodyMod
   };
 }
 
-/** Largest outer radius of a segment, for colour scaling and camera framing. */
-export const maxRadius = (s: Segment) => Math.max(...s.outer);
