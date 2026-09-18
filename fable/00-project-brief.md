@@ -23,7 +23,8 @@ trustworthy and beautiful — not against feature count.
 ## Stack (fixed — do not substitute)
 
 - React + TypeScript + Vite
-- Three.js via `@react-three/fiber` and `@react-three/drei`
+- Three.js directly (not react-three-fiber: it pins React below 19.3 and pulls in Expo
+  peers, and the geometry here is custom and imperative, so the wrapper earns nothing)
 - `pdfjs-dist` for PDF text extraction
 - IndexedDB via `dexie` for all persistence
 - Tailwind CSS

@@ -1,7 +1,6 @@
-import { CATEGORY_LABELS, byCatalogOrder, type Category } from '../lib/catalog';
 import type { ParsedReport } from '../lib/parser';
-import type { Metric, Profile, Report } from '../lib/db';
-import { Button, Panel, ProvenanceTag, SourceLabel } from './primitives';
+import type { Profile, Report } from '../lib/db';
+import { Button, Panel } from './primitives';
 
 /**
  * The app cannot know whose report a file is, so it never decides. Merging two people
@@ -60,96 +59,6 @@ export function SubjectCheckScreen({
   );
 }
 
-export function DataReadyScreen({
-  profile,
-  metrics,
-  onUploadAnother,
-}: {
-  profile: Profile;
-  metrics: Metric[];
-  onUploadAnother: () => void;
-}) {
-  const byCategory = new Map<Category, Metric[]>();
-  for (const m of [...metrics].sort(byCatalogOrder)) {
-    const list = byCategory.get(m.category) ?? [];
-    list.push(m);
-    byCategory.set(m.category, list);
-  }
-
-  const headline = ['weight', 'fat_percentage', 'skeletal_muscle_mass', 'water_percentage']
-    .map((n) => metrics.find((m) => m.canonical_name === n))
-    .filter((m): m is Metric => Boolean(m));
-
-  return (
-    <div className="mx-auto max-w-5xl px-6 py-14">
-      <h1 className="text-4xl font-light tracking-tight">Your data is ready</h1>
-      <p className="mt-3 text-atlas-muted">
-        {profile.subject_name} · {metrics.length} verified measurements · height{' '}
-        {profile.height_cm} cm{' '}
-        <ProvenanceTag level={profile.height_provenance === 'measured' ? 'measured' : 'derived'} />
-      </p>
-
-      <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {headline.map((m) => (
-          <Panel key={m.canonical_name} className="p-5">
-            <div className="text-3xl font-light">
-              {m.value}
-              <span className="ml-1 text-base text-atlas-muted">{m.unit}</span>
-            </div>
-            <div className="mt-1 text-xs uppercase tracking-wider text-atlas-muted">
-              {m.display_name}
-            </div>
-            <div className="mt-3">
-              <SourceLabel label={m.source_classification} />
-            </div>
-          </Panel>
-        ))}
-      </div>
-
-      <Panel className="mt-6 border-dashed p-8 text-center">
-        <p className="text-atlas-muted">
-          Your body model arrives in the next stage. These measurements are what will
-          generate it.
-        </p>
-      </Panel>
-
-      <div className="mt-12 space-y-8">
-        {[...byCategory.entries()].map(([category, list]) => (
-          <div key={category}>
-            <h2 className="text-sm uppercase tracking-wider text-atlas-muted">
-              {CATEGORY_LABELS[category]}{' '}
-              <span className="text-atlas-muted/50">{list.length}</span>
-            </h2>
-            <Panel className="mt-3 overflow-hidden">
-              <table className="w-full text-sm">
-                <tbody>
-                  {list.map((m) => (
-                    <tr key={m.id} className="border-b border-atlas-line/50 last:border-0">
-                      <td className="px-4 py-2.5">{m.display_name}</td>
-                      <td className="px-4 py-2.5 text-right font-mono">
-                        {m.value}
-                        <span className="ml-1 text-atlas-muted">{m.unit ?? ''}</span>
-                      </td>
-                      <td className="w-40 px-4 py-2.5 text-right">
-                        <SourceLabel label={m.source_classification} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Panel>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-12">
-        <Button variant="ghost" onClick={onUploadAnother}>
-          Upload another report
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 export function ReportsScreen({
   reports,

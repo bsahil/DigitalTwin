@@ -58,9 +58,13 @@ export function SourceLabel({ label }: { label: string | null }) {
   );
 }
 
-export function Panel({ children, className = '' }: { children: ReactNode; className?: string }) {
+export function Panel({
+  children,
+  className = '',
+  ...rest
+}: { children: ReactNode; className?: string } & React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={`rounded-xl border border-atlas-line bg-atlas-panel/60 ${className}`}>
+    <div className={`rounded-xl border border-atlas-line bg-atlas-panel/60 ${className}`} {...rest}>
       {children}
     </div>
   );

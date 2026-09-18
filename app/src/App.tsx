@@ -9,14 +9,16 @@ import {
   uid,
   type Metric,
   type Profile,
+  type Report as StoredReport,
 } from './lib/db';
 import { parsePdf, type ParsedReport } from './lib/parser';
 import { UploadScreen } from './ui/UploadScreen';
 import { ProcessingScreen, PROCESSING_STEPS } from './ui/ProcessingScreen';
 import { VerifyScreen, type DraftMetric } from './ui/VerifyScreen';
-import { DataReadyScreen, ReportsScreen, SubjectCheckScreen } from './ui/screens';
+import { ReportsScreen, SubjectCheckScreen } from './ui/screens';
+import { BodyScreen } from './ui/BodyScreen';
 
-type View = 'upload' | 'processing' | 'subject' | 'verify' | 'ready' | 'reports';
+type View = 'upload' | 'processing' | 'subject' | 'verify' | 'body' | 'reports';
 
 interface Pending {
   parsed: ParsedReport;
@@ -43,22 +45,31 @@ export default function App() {
     [],
     [],
   );
-  const readyMetrics = useLiveQuery(
-    async () => (readyReportId ? db.metrics.where('report_id').equals(readyReportId).toArray() : []),
-    [readyReportId],
-    [] as Metric[],
-  );
-
   const activeProfile =
     profiles.find((p) => p.id === activeProfileId) ?? pending?.profile ?? profiles[0] ?? null;
 
-  // A returning visitor with stored reports should land on their data, not on the
+  /** The body is built from the most recent verified report for the active profile. */
+  const current = useLiveQuery(
+    async () => {
+      if (!activeProfile) return null;
+      const owned = await db.reports.where('profile_id').equals(activeProfile.id).toArray();
+      const latest = owned.sort((a, b) =>
+        a.measurement_date.localeCompare(b.measurement_date),
+      )[owned.length - 1];
+      if (!latest) return null;
+      return { report: latest, metrics: await db.metrics.where('report_id').equals(latest.id).toArray() };
+    },
+    [activeProfile?.id, readyReportId],
+    null as { report: StoredReport; metrics: Metric[] } | null,
+  );
+
+  // A returning visitor with stored reports should land on their body, not on the
   // first-run upload prompt. Routes once, then leaves navigation to the user.
   const routed = useRef(false);
   useEffect(() => {
     if (routed.current || reports.length === 0) return;
     routed.current = true;
-    setView((v) => (v === 'upload' ? 'reports' : v));
+    setView((v) => (v === 'upload' ? 'body' : v));
   }, [reports.length]);
 
   async function handleFile(file: File) {
@@ -151,7 +162,7 @@ export default function App() {
 
     setReadyReportId(reportId);
     setPending(null);
-    setView('ready');
+    setView('body');
   }
 
   return (
@@ -166,12 +177,18 @@ export default function App() {
           </button>
 
           <nav className="ml-6 flex gap-5 text-sm">
-            <button
-              onClick={() => setView('reports')}
-              className={view === 'reports' ? 'text-atlas-text' : 'text-atlas-muted hover:text-atlas-text'}
-            >
-              Reports
-            </button>
+            {(['body', 'reports'] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                disabled={v === 'body' && !current}
+                className={`capitalize disabled:opacity-30 ${
+                  view === v ? 'text-atlas-text' : 'text-atlas-muted hover:text-atlas-text'
+                }`}
+              >
+                {v}
+              </button>
+            ))}
           </nav>
 
           {profiles.length > 0 && (
@@ -240,11 +257,11 @@ export default function App() {
           />
         )}
 
-        {view === 'ready' && activeProfile && (
-          <DataReadyScreen
+        {view === 'body' && activeProfile && current && (
+          <BodyScreen
             profile={activeProfile}
-            metrics={readyMetrics}
-            onUploadAnother={() => setView('upload')}
+            metrics={current.metrics}
+            measurementDate={current.report.measurement_date}
           />
         )}
 
