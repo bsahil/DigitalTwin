@@ -1,8 +1,12 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import type { BodyModel, RegionId, Segment } from '../lib/bodyModel';
-import { applyHover, applyLayer, buildSegmentMeshes, pickRegion, type Layer } from '../lib/bodyScene';
+import { pickRegion, regionOverlay, writeOverlay, type Layer } from '../lib/bodyScene';
+import { bodyMaterials, syncBodyMaterials, DEFAULT_SKIN_TONE } from '../lib/bodyMaterials';
+import type { HumanMesh } from '../lib/humanMesh';
+import type { FitResult } from '../lib/bodyFit';
 
 export type { Layer } from '../lib/bodyScene';
 export type CameraPreset = 'front' | 'back' | 'left' | 'right';
@@ -22,7 +26,7 @@ const RULE_X = -0.48;
 const RULE_LABELS_M = [0.5, 1.0, 1.5];
 
 /** A vertical rule in 10 cm ticks beside the figure, with the figure's own height marked. */
-function heightRule(model: BodyModel): THREE.Group {
+function heightRule(heightM: number): THREE.Group {
   const g = new THREE.Group();
   const pts: number[] = [];
   const push = (x1: number, y1: number, x2: number, y2: number) => pts.push(x1, y1, 0, x2, y2, 0);
@@ -44,7 +48,7 @@ function heightRule(model: BodyModel): THREE.Group {
   const marker = new THREE.LineSegments(
     new THREE.BufferGeometry().setAttribute(
       'position',
-      new THREE.Float32BufferAttribute([RULE_X - 0.04, model.heightM, 0, RULE_X + 0.12, model.heightM, 0], 3),
+      new THREE.Float32BufferAttribute([RULE_X - 0.04, heightM, 0, RULE_X + 0.12, heightM, 0], 3),
     ),
     new THREE.LineBasicMaterial({ color: 0x5eead4, transparent: true, opacity: 0.9 }),
   );
@@ -54,21 +58,21 @@ function heightRule(model: BodyModel): THREE.Group {
 }
 
 /** A soft ellipse of shadow, so the figure stands rather than floats. */
-function contactShadow(model: BodyModel): THREE.Mesh {
+function contactShadow(heightM: number): THREE.Mesh {
   const size = 256;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d')!;
 
   const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  gradient.addColorStop(0, 'rgba(0,0,0,0.55)');
-  gradient.addColorStop(0.45, 'rgba(0,0,0,0.25)');
+  gradient.addColorStop(0, 'rgba(0,0,0,0.6)');
+  gradient.addColorStop(0.45, 'rgba(0,0,0,0.28)');
   gradient.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, size, size);
 
   const mesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(model.heightM * 0.5, model.heightM * 0.3),
+    new THREE.PlaneGeometry(heightM * 0.5, heightM * 0.3),
     new THREE.MeshBasicMaterial({
       map: new THREE.CanvasTexture(canvas),
       transparent: true,
@@ -82,6 +86,9 @@ function contactShadow(model: BodyModel): THREE.Mesh {
 
 export function BodyView({
   model,
+  human,
+  fit,
+  skinTone = DEFAULT_SKIN_TONE,
   layer,
   selected,
   onSelect,
@@ -91,6 +98,11 @@ export function BodyView({
   scaleMode = 'fit',
 }: {
   model: BodyModel;
+  /** The realistic mesh, once its asset has loaded. */
+  human: HumanMesh | null;
+  /** Morph weights for this model, once computed. */
+  fit: FitResult | null;
+  skinTone?: string;
   layer: Layer;
   selected: RegionId | null;
   onSelect: (id: RegionId | null) => void;
@@ -104,8 +116,10 @@ export function BodyView({
   const label = useRef<HTMLDivElement>(null);
   const camera = useRef<THREE.PerspectiveCamera>(null);
   const controls = useRef<OrbitControls>(null);
+  const renderer = useRef<THREE.WebGLRenderer>(null);
   const group = useRef<THREE.Group>(null);
-  const meshes = useRef<THREE.Mesh[]>([]);
+  const body = useRef<THREE.Mesh | null>(null);
+  const centroids = useRef<Map<RegionId, THREE.Vector3>>(new Map());
   const hovered = useRef<RegionId | null>(null);
   const downAt = useRef<{ x: number; y: number } | null>(null);
   const rule = useRef<THREE.Group>(null);
@@ -115,54 +129,64 @@ export function BodyView({
   scaleRef.current = scaleMode;
   const labelFn = useRef(labelFor);
   labelFn.current = labelFor;
-
-  // Kept at a constant that clips nothing until the cutaway turns on, so switching
-  // layers never recompiles a shader.
-  const clip = useRef(new THREE.Plane(new THREE.Vector3(0, 0, -1), 10));
+  const pendingPointer = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const el = host.current!;
     const scene = new THREE.Scene();
-    const cam = new THREE.PerspectiveCamera(FOV, 1, 0.1, 100);
+    const cam = new THREE.PerspectiveCamera(FOV, 1, 0.05, 100);
     // preserveDrawingBuffer lets a test read pixels back through a 2D canvas.
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
 
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    renderer.setSize(el.clientWidth, el.clientHeight);
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.15;
-    renderer.localClippingEnabled = true;
-    el.appendChild(renderer.domElement);
+    r.setPixelRatio(Math.min(devicePixelRatio, 2));
+    r.setSize(el.clientWidth, el.clientHeight);
+    r.outputColorSpace = THREE.SRGBColorSpace;
+    r.toneMapping = THREE.ACESFilmicToneMapping;
+    r.toneMappingExposure = 1.0;
+    el.appendChild(r.domElement);
 
-    scene.add(new THREE.HemisphereLight(0x9fb6ff, 0x0a0c12, 0.75));
-    const key = new THREE.DirectionalLight(0xffffff, 2.0);
+    // Image-based light does most of the work on skin; one key light gives it form.
+    const pmrem = new THREE.PMREMGenerator(r);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    pmrem.dispose();
+    const key = new THREE.DirectionalLight(0xffffff, 1.2);
     key.position.set(2.5, 3.5, 3);
     scene.add(key);
-    const rim = new THREE.DirectionalLight(0x7fe8d8, 0.8);
-    rim.position.set(-3, 1.5, -2.5);
-    scene.add(rim);
-    const fill = new THREE.DirectionalLight(0x93b0ff, 0.5);
-    fill.position.set(0, -2, 2);
-    scene.add(fill);
+    scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x1a1410, 0.3));
 
     const g = new THREE.Group();
     scene.add(g);
 
-    const c = new OrbitControls(cam, renderer.domElement);
+    const c = new OrbitControls(cam, r.domElement);
     c.enableDamping = true;
     c.dampingFactor = 0.08;
-    c.minDistance = 1;
+    c.minDistance = 0.4;
     c.maxDistance = 8;
 
     camera.current = cam;
     controls.current = c;
+    renderer.current = r;
     group.current = g;
 
     const projected = new THREE.Vector3();
+    const raycaster = new THREE.Raycaster();
     let raf = 0;
     const tick = () => {
       c.update();
-      renderer.render(scene, cam);
+
+      // Picking happens at most once per frame, from wherever the pointer last was.
+      const p = pendingPointer.current;
+      if (p && body.current && human) {
+        pendingPointer.current = null;
+        const rect = el.getBoundingClientRect();
+        raycaster.setFromCamera(
+          new THREE.Vector2(((p.x - rect.left) / rect.width) * 2 - 1, -((p.y - rect.top) / rect.height) * 2 + 1),
+          cam,
+        );
+        applyHover(pickRegion(human, body.current, raycaster));
+      }
+
+      r.render(scene, cam);
 
       // The hover label tracks the body imperatively; doing it through React state
       // would re-render the tree every frame.
@@ -171,14 +195,10 @@ export function BodyView({
         const id = hovered.current;
         const segment = id ? model.segments.find((s) => s.id === id) : null;
         const text = segment ? labelFn.current(segment) : null;
+        const anchor = id ? centroids.current.get(id) : undefined;
 
-        if (segment && text) {
-          projected.set(
-            segment.origin[0],
-            segment.origin[1] - segment.length * 0.45,
-            segment.origin[2],
-          );
-          projected.project(cam);
+        if (segment && text && anchor) {
+          projected.copy(anchor).project(cam);
           el2.textContent = text;
           el2.style.transform = `translate(-50%, -50%) translate(${
             ((projected.x + 1) / 2) * el.clientWidth
@@ -213,7 +233,7 @@ export function BodyView({
       if (!el.clientWidth) return;
       cam.aspect = el.clientWidth / el.clientHeight;
       cam.updateProjectionMatrix();
-      renderer.setSize(el.clientWidth, el.clientHeight);
+      r.setSize(el.clientWidth, el.clientHeight);
     };
     const observer = new ResizeObserver(resize);
     observer.observe(el);
@@ -223,12 +243,15 @@ export function BodyView({
       cancelAnimationFrame(raf);
       observer.disconnect();
       c.dispose();
-      renderer.dispose();
-      el.removeChild(renderer.domElement);
+      scene.environment?.dispose();
+      r.dispose();
+      el.removeChild(r.domElement);
     };
-  }, [model]);
+    // The scene is rebuilt only when the mesh instance changes; everything else updates in place.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [human]);
 
-  // Meshes, rebuilt whenever the measurements change.
+  // The body: one mesh, four material groups, shaped by the fit and scaled to the height.
   useEffect(() => {
     const g = group.current;
     if (!g) return;
@@ -236,19 +259,34 @@ export function BodyView({
     for (const child of [...g.children]) {
       g.remove(child);
       const mesh = child as THREE.Mesh;
-      mesh.geometry?.dispose();
-      (mesh.material as THREE.Material)?.dispose();
+      if (mesh !== body.current) {
+        mesh.geometry?.dispose();
+        (mesh.material as THREE.Material)?.dispose?.();
+      }
     }
+    body.current = null;
 
-    g.add(contactShadow(model));
-    meshes.current = buildSegmentMeshes(model, clip.current);
-    for (const m of meshes.current) g.add(m);
-
-    rule.current = heightRule(model);
+    g.add(contactShadow(model.heightM));
+    rule.current = heightRule(model.heightM);
     rule.current.visible = scaleRef.current === 'true';
     g.add(rule.current);
     if (heightLabel.current) heightLabel.current.textContent = `${(model.heightM * 100).toFixed(1)} cm`;
-  }, [model]);
+
+    if (!human || !fit) return;
+    human.setShape(fit.weights, model.heightM);
+    const materials = bodyMaterials(skinTone);
+    materials[2].visible = fit.params.gender < 0.5;
+    syncBodyMaterials(materials, human);
+    const mesh = new THREE.Mesh(human.geometry, materials);
+    mesh.frustumCulled = false;
+    g.add(mesh);
+    body.current = mesh;
+
+    centroids.current = new Map(model.segments.map((s) => [s.id, human.regionCentroid(s.id)]));
+    writeOverlay(human, regionOverlay(model, layer, selected, hovered.current));
+    // layer/selected are applied by their own effect; this one owns the geometry.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model, human, fit, skinTone]);
 
   // Fit mode frames this body; true scale frames a fixed envelope so height is legible.
   useEffect(() => {
@@ -269,46 +307,40 @@ export function BodyView({
     cam.position.set(...positions[preset]);
     c.target.set(0, y, 0);
     c.update();
-  }, [preset, scaleMode, model]);
+  }, [preset, scaleMode, model, human]);
 
   useEffect(() => {
-    applyLayer(meshes.current, layer, selected, model, clip.current);
-    applyHover(meshes.current, hovered.current, selected, layer);
-  }, [layer, selected, model]);
+    if (human && body.current) writeOverlay(human, regionOverlay(model, layer, selected, hovered.current));
+  }, [layer, selected, model, human, fit]);
 
   // Keyboard focus drives hover only while it is in play; a selection or layer change
   // must not clear a hover the pointer is still resting on.
   const prevFocus = useRef<RegionId | null>(null);
   useEffect(() => {
-    if (focusRegion !== null || prevFocus.current !== null) {
-      hovered.current = focusRegion;
-      applyHover(meshes.current, focusRegion, selected, layer);
-    }
+    if (focusRegion !== null || prevFocus.current !== null) applyHover(focusRegion);
     prevFocus.current = focusRegion;
-    // selected and layer are re-applied by the layer effect; only focus changes matter here.
+    // selected and layer are re-applied by the overlay effect; only focus changes matter here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusRegion]);
 
-  function setHovered(next: RegionId | null) {
+  function applyHover(next: RegionId | null) {
     if (next === hovered.current) return;
     hovered.current = next;
-    applyHover(meshes.current, next, selected, layer);
+    if (human && body.current) writeOverlay(human, regionOverlay(model, layer, selected, next));
     if (host.current) host.current.style.cursor = next ? 'pointer' : 'default';
   }
 
-  function pick(event: React.MouseEvent): RegionId | null {
-    const el = host.current!;
-    const cam = camera.current!;
+  function pickAt(clientX: number, clientY: number): RegionId | null {
+    const el = host.current;
+    const cam = camera.current;
+    if (!el || !cam || !human || !body.current) return null;
     const rect = el.getBoundingClientRect();
-
-    const pointer = new THREE.Vector2(
-      ((event.clientX - rect.left) / rect.width) * 2 - 1,
-      -((event.clientY - rect.top) / rect.height) * 2 + 1,
-    );
-
     const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(pointer, cam);
-    return pickRegion(meshes.current, raycaster);
+    raycaster.setFromCamera(
+      new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1),
+      cam,
+    );
+    return pickRegion(human, body.current, raycaster);
   }
 
   return (
@@ -321,12 +353,25 @@ export function BodyView({
         // An orbit drag ends with a click event too; it must not read as a selection.
         const d = downAt.current;
         if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6) return;
-        onSelect(pick(e));
+        onSelect(pickAt(e.clientX, e.clientY));
       }}
-      onPointerMove={(e) => setHovered(pick(e))}
-      onPointerLeave={() => setHovered(null)}
+      onPointerMove={(e) => {
+        pendingPointer.current = { x: e.clientX, y: e.clientY };
+      }}
+      onPointerLeave={() => {
+        pendingPointer.current = null;
+        applyHover(null);
+      }}
       className="relative h-full w-full"
     >
+      {!human && (
+        <div
+          data-testid="body-loading"
+          className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-atlas-muted"
+        >
+          Loading body…
+        </div>
+      )}
       {RULE_LABELS_M.map((y, i) => (
         <div
           key={y}

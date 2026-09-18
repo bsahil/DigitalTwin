@@ -10,6 +10,8 @@ export interface Profile {
   height_cm: number | null;
   height_provenance: Provenance;
   created_at: string;
+  /** Chosen for the picture only; sRGB hex. Optional and unindexed, so no schema version. */
+  skin_tone?: string;
 }
 
 export interface Report {

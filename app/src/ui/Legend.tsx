@@ -31,19 +31,6 @@ function Scale({ low, high }: { low: string; high: string }) {
   );
 }
 
-function Swatch({ color, label }: { color: number; label: string }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span
-        className="h-2.5 w-2.5 shrink-0 rounded-sm"
-        style={{ background: hex(color) }}
-        aria-hidden
-      />
-      <span className="text-[11px] text-atlas-muted">{label}</span>
-    </div>
-  );
-}
-
 /**
  * Colour on the body encodes magnitude, so it needs a key. Ranges are this person's
  * own minimum and maximum across their measured regions — never a population norm.
@@ -62,8 +49,7 @@ export function Legend({ layer, model }: { layer: Layer; model: BodyModel }) {
         <Ramp from={COLORS.neutral} to={COLORS.fat} />
         <Scale low={pct(lo)} high={pct(hi)} />
         <p className="mt-2 text-[10px] leading-relaxed text-atlas-muted/70">
-          Shaded across your own regions. The trunk also shows visceral fat as an inner
-          core.
+          Shaded across your own regions, over the body you chose.
         </p>
       </Wrapper>
     );
@@ -76,7 +62,7 @@ export function Legend({ layer, model }: { layer: Layer; model: BodyModel }) {
         <Ramp from={COLORS.neutral} to={COLORS.muscle} />
         <Scale low={pct(lo)} high={pct(hi)} />
         <p className="mt-2 text-[10px] leading-relaxed text-atlas-muted/70">
-          The solid inner form is the measured muscle volume.
+          Shaded across your own regions, over the body you chose.
         </p>
       </Wrapper>
     );
@@ -97,23 +83,6 @@ export function Legend({ layer, model }: { layer: Layer; model: BodyModel }) {
           <span>equal</span>
           <span>+{edge}% heavier</span>
         </div>
-      </Wrapper>
-    );
-  }
-
-  if (layer === 'inside') {
-    return (
-      <Wrapper title="Cut through the body">
-        <div className="space-y-1.5">
-          <Swatch color={COLORS.fat} label="Subcutaneous fat" />
-          <Swatch color={COLORS.muscle} label="Muscle and lean tissue" />
-          <Swatch color={COLORS.visceral} label="Visceral fat (trunk only)" />
-        </div>
-        <p className="mt-2 text-[10px] leading-relaxed text-atlas-muted/70">
-          Each band holds the volume its measured mass implies. Where the visceral core
-          sits inside the trunk is illustrative — your scan measures the amount, not the
-          location.
-        </p>
       </Wrapper>
     );
   }

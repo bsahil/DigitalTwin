@@ -10,13 +10,16 @@ import { Legend } from './Legend';
 import { StandoutStrip } from './StandoutStrip';
 import { buildStandouts } from '../lib/standout';
 import { Panel, ProvenanceTag, SourceLabel } from './primitives';
+import { useHumanMesh } from './useHumanBody';
+import { fitBody, fitInputFromModel } from '../lib/bodyFit';
+import { DEFAULT_SKIN_TONE, SKIN_TONES } from '../lib/bodyMaterials';
+import { db } from '../lib/db';
 
 const LAYERS: { id: Layer; label: string }[] = [
   { id: 'normal', label: 'Body' },
   { id: 'fat', label: 'Fat' },
   { id: 'muscle', label: 'Muscle' },
   { id: 'balance', label: 'Balance' },
-  { id: 'inside', label: 'Inside' },
 ];
 
 const PRESETS: CameraPreset[] = ['front', 'back', 'left', 'right'];
@@ -46,11 +49,10 @@ const REGION_METRICS: Record<string, { muscle: string; fat: string; ratio: strin
 };
 
 const LAYER_NOTE: Record<Layer, string> = {
-  normal: 'Shape and volume come from the fat and muscle masses in your report.',
+  normal: 'Size and each region’s volume come from your measurements; the face and proportions are a template.',
   fat: 'Colour shows each region’s fat share, compared against your own other regions.',
-  muscle: 'The inner form is the muscle volume your report measured for each region.',
+  muscle: 'Colour shows each region’s muscle share, compared against your own other regions.',
   balance: 'Highlights measured left/right differences in muscle mass.',
-  inside: 'Cut through the body to see the compartments your report measured.',
 };
 
 export function BodyScreen({
@@ -74,16 +76,32 @@ export function BodyScreen({
   const [showDataCheck, setShowDataCheck] = useState(false);
   const [showProvenance, setShowProvenance] = useState(false);
   const [focusRegion, setFocusRegion] = useState<RegionId | null>(null);
+  const [skinTone, setSkinTone] = useState<string>(profile.skin_tone ?? DEFAULT_SKIN_TONE);
 
   const byName = useMemo(() => new Map(metrics.map((m) => [m.canonical_name, m])), [metrics]);
 
-  const model = useMemo(() => {
-    const values: MetricValues = {};
+  const values = useMemo(() => {
+    const v: MetricValues = {};
     for (const m of metrics) {
-      if (typeof m.value === 'number') values[m.canonical_name] = m.value;
+      if (typeof m.value === 'number') v[m.canonical_name] = m.value;
     }
-    return buildBodyModel(values, profile.height_cm ?? 170);
-  }, [metrics, profile.height_cm]);
+    return v;
+  }, [metrics]);
+
+  const model = useMemo(() => buildBodyModel(values, profile.height_cm ?? 170), [values, profile.height_cm]);
+
+  // The realistic body: the asset loads once, the fit runs once per model.
+  const { human, error: bodyError } = useHumanMesh();
+  const selfReport = provider === 'Self-reported';
+  const fit = useMemo(
+    () => (human ? fitBody(human, fitInputFromModel(model, profile, values, selfReport ? 'self_report' : 'report')) : null),
+    [human, model, profile, values, selfReport],
+  );
+
+  function chooseTone(tone: string) {
+    setSkinTone(tone);
+    void db.profiles.update(profile.id, { skin_tone: tone });
+  }
 
   const flags = useMemo(() => {
     const input: CheckMetric[] = metrics.map((m) => ({
@@ -119,11 +137,6 @@ export function BodyScreen({
     if (layer === 'muscle') {
       return `${segment.label} · muscle ${kg(lean)} · ${pct(segment.muscleShare)} of region`;
     }
-    if (layer === 'inside') {
-      return visceral
-        ? `${segment.label} · muscle ${kg(lean)} · fat ${kg(fat)} · visceral ${kg(visceral)}`
-        : `${segment.label} · muscle ${kg(lean)} · fat ${kg(fat)}`;
-    }
     if (layer === 'balance') {
       const pair = segment.id.includes('arm') ? model.asymmetry.arms : segment.id.includes('leg') ? model.asymmetry.legs : 0;
       if (pair === 0) return `${segment.label} · no left/right pair`;
@@ -135,6 +148,7 @@ export function BodyScreen({
   }
 
   const segment = selected ? model.segments.find((s) => s.id === selected) : null;
+  const hasRegions = model.segments.some((s) => s.measured);
   const regionMetrics = selected ? REGION_METRICS[selected] : undefined;
 
   function open(canonicalName: string) {
@@ -163,6 +177,9 @@ export function BodyScreen({
         <div className="relative min-w-0 flex-1 overflow-hidden">
           <BodyView
             model={model}
+            human={human}
+            fit={fit}
+            skinTone={skinTone}
             layer={layer}
             selected={selected}
             onSelect={setSelected}
@@ -243,19 +260,49 @@ export function BodyScreen({
           )}
 
           <div className="absolute left-1/2 top-16 flex -translate-x-1/2 gap-1 rounded-full border border-atlas-line bg-atlas-panel/80 p-1 backdrop-blur sm:top-6">
-            {LAYERS.map((l) => (
+            {LAYERS.map((l) => {
+              const disabled = l.id !== 'normal' && !hasRegions;
+              return (
+                <button
+                  key={l.id}
+                  data-testid={`layer-${l.id}`}
+                  aria-disabled={disabled}
+                  title={disabled ? 'Needs a body-composition report' : undefined}
+                  onClick={() => !disabled && setLayer(l.id)}
+                  className={`rounded-full px-4 py-1.5 text-xs transition ${
+                    layer === l.id
+                      ? 'bg-atlas-accent text-atlas-bg'
+                      : disabled
+                        ? 'cursor-not-allowed text-atlas-muted/40'
+                        : 'text-atlas-muted hover:text-atlas-text'
+                  }`}
+                >
+                  {l.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Skin tone is a picture choice, not data: numbered, never described. */}
+          <div
+            data-testid="skin-tones"
+            className="absolute right-4 top-16 flex gap-1 rounded-full border border-atlas-line bg-atlas-panel/80 p-1 backdrop-blur sm:right-6 sm:top-[4.5rem]"
+            role="radiogroup"
+            aria-label="Skin tone"
+          >
+            {SKIN_TONES.map((tone, i) => (
               <button
-                key={l.id}
-                data-testid={`layer-${l.id}`}
-                onClick={() => setLayer(l.id)}
-                className={`rounded-full px-4 py-1.5 text-xs transition ${
-                  layer === l.id
-                    ? 'bg-atlas-accent text-atlas-bg'
-                    : 'text-atlas-muted hover:text-atlas-text'
+                key={tone}
+                data-testid={`skin-tone-${i + 1}`}
+                role="radio"
+                aria-checked={skinTone === tone}
+                aria-label={`Skin tone ${i + 1}`}
+                onClick={() => chooseTone(tone)}
+                className={`h-5 w-5 rounded-full border-2 transition ${
+                  skinTone === tone ? 'border-atlas-accent' : 'border-transparent hover:border-atlas-line'
                 }`}
-              >
-                {l.label}
-              </button>
+                style={{ background: tone }}
+              />
             ))}
           </div>
 
@@ -294,9 +341,10 @@ export function BodyScreen({
           <div className="pointer-events-none absolute bottom-4 left-4 max-w-[58%] text-xs leading-relaxed text-atlas-muted/70 sm:bottom-6 sm:left-6 sm:max-w-xs">
             Generated from your measurements. Not a scan of your anatomy.
             <div className="mt-1 hidden text-atlas-muted/50 sm:block">{LAYER_NOTE[layer]}</div>
+            {bodyError && <div className="mt-1 text-rose-300">The body could not load: {bodyError}</div>}
           </div>
 
-          <div className="pointer-events-none absolute right-4 top-16 sm:right-6 sm:top-20">
+          <div className="pointer-events-none absolute right-4 top-24 sm:right-6 sm:top-[6.5rem]">
             <Legend layer={layer} model={model} />
           </div>
 
@@ -309,32 +357,35 @@ export function BodyScreen({
           </button>
 
           {showProvenance && (
-            <Panel className="absolute bottom-16 right-4 w-80 max-w-[calc(100vw-2rem)] space-y-3 bg-atlas-panel/95 p-5 text-xs backdrop-blur sm:bottom-20 sm:right-6">
-              <div className="flex gap-3">
-                <ProvenanceTag level="measured" />
-                <span className="text-atlas-muted">
-                  Fat and muscle mass for trunk, arms and legs, as your device reported them.
-                  On a bioimpedance scan “measured” means the device’s primary estimate —
-                  nothing here is physically measured.
-                </span>
-              </div>
-              <div className="flex gap-3">
-                <ProvenanceTag level="derived" />
-                <span className="text-atlas-muted">
-                  Each region’s volume and thickness, computed from those masses using tissue
-                  density. Your height, from weight and BMI.
-                </span>
-              </div>
-              <div className="flex gap-3">
-                <ProvenanceTag level="illustrative" />
-                <span className="text-atlas-muted">
-                  Limb and torso proportions, and the shape along each segment. Head, neck,
-                  hands and feet — your report does not measure them.
-                </span>
-              </div>
+            <Panel
+              data-testid="provenance-panel"
+              className="absolute bottom-16 right-4 w-80 max-w-[calc(100vw-2rem)] space-y-3 bg-atlas-panel/95 p-5 text-xs backdrop-blur sm:bottom-20 sm:right-6"
+            >
+              {hasRegions && (
+                <div className="flex gap-3">
+                  <ProvenanceTag level="measured" />
+                  <span className="text-atlas-muted">
+                    Fat and muscle mass for trunk, arms and legs, as your device reported them.
+                    On a bioimpedance scan “measured” means the device’s primary estimate —
+                    nothing here is physically measured.
+                  </span>
+                </div>
+              )}
+              {(fit?.claims ?? []).map((c, i) => (
+                <div key={i} className="flex gap-3">
+                  <ProvenanceTag level={c.level} />
+                  <span className="text-atlas-muted">{c.text}</span>
+                </div>
+              ))}
+              {!fit && <div className="text-atlas-muted">The body is still loading.</div>}
+              {hasRegions && (
+                <div className="border-t border-atlas-line pt-3 text-atlas-muted/70">
+                  Measured regions account for {Math.round(model.coverage * 100)}% of your body’s
+                  estimated volume.
+                </div>
+              )}
               <div className="border-t border-atlas-line pt-3 text-atlas-muted/70">
-                Measured regions account for {Math.round(model.coverage * 100)}% of your body’s
-                estimated volume.
+                Body mesh: MakeHuman, CC0.
               </div>
             </Panel>
           )}
@@ -384,12 +435,14 @@ export function BodyScreen({
                     </p>
                     <p
                       data-testid="region-volume"
-                      className="mt-3 flex items-baseline gap-2 text-sm"
+                      className="mt-3 flex flex-wrap items-baseline gap-x-2 text-sm"
                     >
                       <span className="text-atlas-muted">Drawn at</span>
-                      <span className="font-mono">{segment.volumeL.toFixed(1)} L</span>
+                      <span className="font-mono">
+                        {(fit?.achieved.volumesL[segment.id] ?? segment.volumeL).toFixed(1)} L
+                      </span>
                       <span className="text-xs text-atlas-muted">
-                        — the volume its measured fat and muscle imply
+                        — its measured fat and muscle imply {segment.volumeL.toFixed(1)} L
                       </span>
                     </p>
                     <p data-testid="region-shares" className="mt-1 text-xs text-atlas-muted">

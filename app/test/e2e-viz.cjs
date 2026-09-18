@@ -13,10 +13,37 @@ const { chromium } = require('playwright');
   await page.waitForSelector('text=We found', { timeout: 25000 });
   await page.click('text=Confirm & Build My Body');
   await page.waitForSelector('[data-testid=layer-normal]', { timeout: 20000 });
-  await page.waitForTimeout(2500);
+  await page.waitForSelector('[data-testid=body-loading]', { state: 'detached', timeout: 30000 });
+  await page.waitForTimeout(1500);
   await shot('1-normal');
 
-  for (const l of ['fat','muscle','balance','inside']) {
+  // Skin, not blue: the trunk pixel in the body layer must be warm.
+  // The centre column crosses face, top, midriff, brief and legs; the warmest pixel must be skin.
+  const scanColumn = async (fx) => page.evaluate(([fx]) => {
+    const gl = document.querySelector('canvas');
+    const c = document.createElement('canvas');
+    c.width = gl.width; c.height = gl.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(gl, 0, 0);
+    const x = Math.round(gl.width * fx);
+    const d = ctx.getImageData(x, 0, 1, gl.height).data;
+    let warm = { r: 0, g: 0, b: 0, score: -1e9 }, teal = { r: 0, g: 0, b: 0, ratio: 1e9 };
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], g = d[i+1], b = d[i+2];
+      if (r + g + b < 60) continue;
+      if (r - b > warm.score) warm = { r, g, b, score: r - b };
+      const ratio = r / Math.max(1, g);
+      if (g > 80 && ratio < teal.ratio) teal = { r, g, b, ratio };
+    }
+    return { warm, teal };
+  }, [fx]);
+  const col = await scanColumn(0.5);
+  const skin = col.warm;
+  const skinOk = skin.r > skin.g && skin.g > skin.b && skin.r - skin.b >= 25;
+  console.log(`SKIN PIXEL PROBE: rgb(${skin.r|0},${skin.g|0},${skin.b|0}) -> ${skinOk ? 'SKIN' : 'FAIL: not skin-coloured'}`);
+  if (!skinOk) process.exitCode = 1;
+
+  for (const l of ['fat','muscle','balance']) {
     await page.click(`[data-testid=layer-${l}]`);
     await page.waitForTimeout(1100);
     await shot(`2-${l}`);
@@ -26,14 +53,14 @@ const { chromium } = require('playwright');
   }
 
   // Hover label over the trunk.
-  await page.click('[data-testid=layer-inside]');
+  await page.click('[data-testid=layer-normal]');
   await page.waitForTimeout(600);
   const box = await page.locator('canvas').boundingBox();
   await page.mouse.move(box.x + box.width/2, box.y + box.height*0.42);
   await page.waitForTimeout(700);
   const label = page.locator('[data-testid=hover-label]');
   console.log('HOVER LABEL:', await label.innerText(), '| opacity', await label.evaluate(e => getComputedStyle(e).opacity));
-  await shot('3-inside-hover');
+  await shot('3-hover');
 
   // Drag gate: an orbit drag that releases over empty space must not close the selection.
   await page.click('[data-testid=layer-normal]');
@@ -69,27 +96,27 @@ const { chromium } = require('playwright');
   await page.click('[data-testid=view-front]');
   await page.click('[data-testid=layer-muscle]');
   await page.waitForTimeout(900);
-  const probe = await page.evaluate(() => {
-    const gl = document.querySelector('canvas');
-    const c = document.createElement('canvas');
-    c.width = gl.width; c.height = gl.height;
-    const ctx = c.getContext('2d');
-    ctx.drawImage(gl, 0, 0);
-    const cx = Math.round(gl.width / 2), cy = Math.round(gl.height * 0.42);
-    const d = ctx.getImageData(cx - 3, cy - 3, 7, 7).data;
-    let r = 0, g = 0, b = 0, n = 0;
-    for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i+1]; b += d[i+2]; n++; }
-    return { r: r / n, g: g / n, b: b / n };
-  });
-  const ratio = probe.r / Math.max(1, probe.g);
-  console.log(`MUSCLE PIXEL PROBE: rgb(${probe.r|0},${probe.g|0},${probe.b|0}) r/g=${ratio.toFixed(2)} -> ${ratio < 0.6 ? 'TEAL CORE VISIBLE' : 'FAIL: reads as tinted shell'}`);
-  if (ratio >= 0.6) process.exitCode = 1;
+  const teal = (await scanColumn(0.5)).teal;
+  const ratio = teal.ratio;
+  console.log(`MUSCLE PIXEL PROBE: rgb(${teal.r|0},${teal.g|0},${teal.b|0}) r/g=${ratio.toFixed(2)} -> ${ratio < 0.75 ? 'MUSCLE TINT VISIBLE' : 'FAIL: reads as skin'}`);
+  if (ratio >= 0.75) process.exitCode = 1;
 
-  await page.click('[data-testid=layer-inside]');
+  await page.click('[data-testid=layer-normal]');
   await page.waitForTimeout(600);
   await page.click('[data-testid=view-left]');
   await page.waitForTimeout(900);
-  await shot('4-inside-side');
+  await shot('4-side');
+
+  // Skin tone picker changes the rendered skin.
+  await page.click('[data-testid=view-front]');
+  await page.click('[data-testid=skin-tone-6]');
+  await page.waitForTimeout(700);
+  const dark = (await scanColumn(0.5)).warm;
+  console.log(`SKIN TONE 6: rgb(${dark.r|0},${dark.g|0},${dark.b|0}) darker than tone 3: ${dark.r < skin.r - 30}`);
+  if (!(dark.r < skin.r - 30)) process.exitCode = 1;
+  await shot('4b-tone-6');
+  await page.click('[data-testid=skin-tone-3]');
+  await page.waitForTimeout(400);
 
   // True scale: the figure must get smaller against a fixed 195 cm frame, and the
   // rule must mark this person's own height.
