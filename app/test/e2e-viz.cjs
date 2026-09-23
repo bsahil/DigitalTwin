@@ -17,6 +17,23 @@ const { chromium } = require('playwright');
   await page.waitForTimeout(1500);
   await shot('1-normal');
 
+  // The info drawer (headline stats + standouts) starts collapsed, so the body view
+  // gets most of the screen; opening it must visibly shrink the canvas, proving the
+  // space actually moved rather than the drawer floating over the view.
+  const canvasHeight = () => page.locator('canvas').evaluate((c) => c.getBoundingClientRect().height);
+  const collapsedH = await canvasHeight();
+  await page.click('[data-testid=info-drawer-toggle]');
+  await page.waitForTimeout(400);
+  const expandedH = await canvasHeight();
+  console.log(`INFO DRAWER: collapsed canvas=${collapsedH.toFixed(0)}px expanded=${expandedH.toFixed(0)}px -> ${collapsedH > expandedH ? 'OK, collapsed gives the body more room' : 'FAIL: collapsing did not grow the view'}`);
+  if (!(collapsedH > expandedH)) process.exitCode = 1;
+  await shot('1b-drawer-expanded');
+  await page.click('[data-testid=info-drawer-toggle]');
+  // The canvas resize on collapse clears the drawing buffer until the next frame;
+  // wait for two real animation frames (not just a timer) before reading pixels.
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  await page.waitForTimeout(400);
+
   // Skin, not blue: the trunk pixel in the body layer must be warm.
   // The centre column crosses face, top, midriff, brief and legs; the warmest pixel must be skin.
   const scanColumn = async (fx) => page.evaluate(([fx]) => {

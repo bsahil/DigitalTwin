@@ -75,7 +75,10 @@ const { chromium } = require('playwright');
   console.log(`SKIN: rgb(${skin.r},${skin.g},${skin.b}) -> ${skin.r > skin.g && skin.g > skin.b && skin.r - skin.b >= 25 ? 'SKIN' : 'FAIL'}`);
   if (!(skin.r > skin.g && skin.g > skin.b && skin.r - skin.b >= 25)) process.exitCode = 1;
 
-  // The estimated body fat is explained as such.
+  // The estimated body fat is explained as such. Headline stats live in the collapsed
+  // info drawer by default now, so open it first.
+  await page.click('[data-testid=info-drawer-toggle]');
+  await page.waitForTimeout(400);
   await page.click('[data-testid=headline-fat_percentage]');
   await page.waitForSelector('[data-testid=provenance-note]');
   const note = await page.locator('[data-testid=provenance-note]').innerText();

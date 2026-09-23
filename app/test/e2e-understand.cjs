@@ -22,6 +22,11 @@ const { chromium } = require('playwright');
   console.log('DATA CHECK BUTTON:', dcBtn.replace(/\n/g,' '));
   await shot('1-body-with-datacheck');
 
+  // Headline stats and standouts live in a collapsed drawer by default; open it once
+  // for the rest of this walkthrough.
+  await page.click('[data-testid=info-drawer-toggle]');
+  await page.waitForTimeout(400);
+
   const strip = await page.locator('[data-testid=standout-strip]').count();
   const items = await page.locator('[data-testid^=standout-]').count();
   const kinds = await page.locator('[data-testid^=standout-]').evaluateAll(els => els.map(e => e.dataset.testid.replace('standout-', '')));

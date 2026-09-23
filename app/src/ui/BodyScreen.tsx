@@ -7,7 +7,7 @@ import { BodyView, type CameraPreset, type Layer, type ScaleMode } from './BodyV
 import { MetricPanel } from './MetricPanel';
 import { DataCheckPanel } from './DataCheckPanel';
 import { Legend } from './Legend';
-import { StandoutStrip } from './StandoutStrip';
+import { InfoDrawer } from './InfoDrawer';
 import { buildStandouts } from '../lib/standout';
 import { Panel, ProvenanceTag, SourceLabel } from './primitives';
 import { useHumanMesh } from './useHumanBody';
@@ -531,29 +531,7 @@ export function BodyScreen({
         )}
       </div>
 
-      <div className="grid shrink-0 grid-cols-2 border-t border-atlas-line lg:grid-cols-4">
-        {headline.map((m) => (
-          <button
-            key={m.canonical_name}
-            data-testid={`headline-${m.canonical_name}`}
-            onClick={() => open(m.canonical_name)}
-            className="border-r border-atlas-line px-6 py-4 text-left transition last:border-0 hover:bg-atlas-panel/60"
-          >
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-light">{m.value}</span>
-              <span className="text-sm text-atlas-muted">{m.unit}</span>
-            </div>
-            <div className="mt-1 flex items-center gap-2">
-              <span className="text-xs uppercase tracking-wider text-atlas-muted">
-                {m.display_name}
-              </span>
-              <SourceLabel label={m.source_classification} />
-            </div>
-          </button>
-        ))}
-      </div>
-
-      <StandoutStrip items={standouts} onOpen={open} />
+      <InfoDrawer headline={headline} standouts={standouts} onOpen={open} />
     </div>
   );
 }
